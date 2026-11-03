@@ -41,24 +41,24 @@
 
 ### 2.1 LayerNorm 回顾
 
-对 \(\mathbf{x} \in \mathbb{R}^d\)（单 token），LayerNorm：
+对 $`\mathbf{x} \in \mathbb{R}^d`$（单 token），LayerNorm：
 
-\[
+$$
 \mathrm{LN}(\mathbf{x}) = \gamma \odot \frac{\mathbf{x} - \mu}{\sigma + \epsilon} + \beta
-\]
+$$
 
-其中 \(\mu = \frac{1}{d}\sum_i x_i\)，\(\sigma^2 = \frac{1}{d}\sum_i (x_i-\mu)^2\)。
+其中 $`\mu = \frac{1}{d}\sum_i x_i`$，$`\sigma^2 = \frac{1}{d}\sum_i (x_i-\mu)^2`$。
 
 ### 2.2 RMSNorm 公式
 
-**RMSNorm（Root Mean Square Layer Normalization）** 去掉**中心化**（不减均值），通常也**去掉 \(\beta\)**，只保留缩放：
+**RMSNorm（Root Mean Square Layer Normalization）** 去掉**中心化**（不减均值），通常也**去掉 $`\beta`$**，只保留缩放：
 
-\[
+$$
 \mathrm{RMSNorm}(\mathbf{x}) = \alpha \odot \frac{\mathbf{x}}{\mathrm{RMS}(\mathbf{x})},\quad
 \mathrm{RMS}(\mathbf{x}) = \sqrt{\frac{1}{d}\sum_{i=1}^d x_i^2 + \epsilon}
-\]
+$$
 
-\(\alpha \in \mathbb{R}^d\) 为可学习缩放（类比 \(\gamma\)）。
+$`\alpha \in \mathbb{R}^d`$ 为可学习缩放（类比 $`\gamma`$）。
 
 ### 2.3 与 LayerNorm 对比
 
@@ -66,7 +66,7 @@
 |------|-----------|---------|
 | 减均值 | 是 | 否 |
 | 除以 RMS | 是（经方差） | 是 |
-| 偏置 \(\beta\) | 常有 | 常无 |
+| 偏置 $`\beta`$ | 常有 | 常无 |
 | 计算量 | 略高 | 略低 |
 
 ### 2.4 为什么 RMSNorm「足够好」？
@@ -75,8 +75,8 @@
 
 ### 2.5 Pre-Norm vs Post-Norm（再述）
 
-- **Pre-Norm**：\(\mathbf{x} \leftarrow \mathbf{x} + \mathrm{Sublayer}(\mathrm{Norm}(\mathbf{x}))\)  
-- **Post-Norm**：\(\mathbf{x} \leftarrow \mathrm{Norm}(\mathbf{x} + \mathrm{Sublayer}(\mathbf{x}))\)  
+- **Pre-Norm**：$`\mathbf{x} \leftarrow \mathbf{x} + \mathrm{Sublayer}(\mathrm{Norm}(\mathbf{x}))`$  
+- **Post-Norm**：$`\mathbf{x} \leftarrow \mathrm{Norm}(\mathbf{x} + \mathrm{Sublayer}(\mathbf{x}))`$  
 
 现代大模型 **Pre-Norm + RMSNorm** 极常见，训练更稳、易加深。
 
@@ -104,29 +104,29 @@ class RMSNorm(nn.Module):
 
 ### 3.1 从 ReLU 到 GELU 到 SwiGLU
 
-- **ReLU**：\(\max(0,x)\)，简单但不平滑。  
+- **ReLU**：$`\max(0,x)`$，简单但不平滑。  
 - **GELU**：平滑，Transformer 常用。  
 - **GLU（Gated Linear Unit）**：把一路当门控。
 
 ### 3.2 SwiGLU 公式
 
-**Swish** 激活：\(\sigma(x) = x \cdot \mathrm{sigmoid}(\beta x)\)，常取 \(\beta=1\)。
+**Swish** 激活：$`\sigma(x) = x \cdot \mathrm{sigmoid}(\beta x)`$，常取 $`\beta=1`$。
 
 **SwiGLU** FFN 常写作：
 
-\[
+$$
 \mathrm{FFN}_{\mathrm{SwiGLU}}(\mathbf{x}) = \big(\mathrm{Swish}(\mathbf{x}\mathbf{W}_1) \odot \mathbf{x}\mathbf{V}\big)\mathbf{W}_2
-\]
+$$
 
-其中 \(\odot\) 为逐元素乘，\(\mathbf{W}_1,\mathbf{V}\) 将 \(\mathbf{x}\) 映到中间维（常取 \(2/3\) 或按实现调整相对 \(4d\) 的配比），\(\mathbf{W}_2\) 映回 \(d\)。
+其中 $`\odot`$ 为逐元素乘，$`\mathbf{W}_1,\mathbf{V}`$ 将 $`\mathbf{x}`$ 映到中间维（常取 $`2/3`$ 或按实现调整相对 $`4d`$ 的配比），$`\mathbf{W}_2`$ 映回 $`d`$。
 
-**直觉**：门控 \(\sigma(\mathbf{x}\mathbf{W}_1)\) 控制 \(\mathbf{x}\mathbf{V}\) 哪些通道通过，**表达能力**强于单路 MLP。
+**直觉**：门控 $`\sigma(\mathbf{x}\mathbf{W}_1)`$ 控制 $`\mathbf{x}\mathbf{V}`$ 哪些通道通过，**表达能力**强于单路 MLP。
 
-### 3.3 对隐层维度的影响（\(8d/3\) 梗）
+### 3.3 对隐层维度的影响（$`8d/3`$ 梗）
 
-若经典 FFN 用两层 \(d \to 4d \to d\)，参数量约 \(2 \cdot 4d^2 = 8d^2\)。
+若经典 FFN 用两层 $`d \to 4d \to d`$，参数量约 $`2 \cdot 4d^2 = 8d^2`$。
 
-SwiGLU 有 **三路线性**（\(\mathbf{W}_1,\mathbf{V},\mathbf{W}_2\)），若仍将「总参数」控制在相近量级，常把中间维从 \(4d\) 调到约 **\(\frac{8}{3}d\)**，使总参数量级与 \(8d^2\) 可比（**面试说法**：「为补偿三矩阵，缩中间宽」；精确常数依实现）。
+SwiGLU 有 **三路线性**（$`\mathbf{W}_1,\mathbf{V},\mathbf{W}_2`$），若仍将「总参数」控制在相近量级，常把中间维从 $`4d`$ 调到约 **$`\frac{8}{3}d`$**，使总参数量级与 $`8d^2`$ 可比（**面试说法**：「为补偿三矩阵，缩中间宽」；精确常数依实现）。
 
 ### 3.4 代码实现（示意）
 
@@ -146,7 +146,7 @@ class SwiGLU(nn.Module):
         return self.w2(F.silu(self.w1(x)) * self.v(x))
 ```
 
-`F.silu` 即 Swish（\(\beta=1\)）。
+`F.silu` 即 Swish（$`\beta=1`$）。
 
 ---
 
@@ -164,8 +164,8 @@ class SwiGLU(nn.Module):
 
 ### 4.3 KV Cache 显存直觉
 
-每层缓存 \(\mathbf{K},\mathbf{V}\)，形状 roughly \((B, n_{\mathrm{kv}}, T, d_h)\)。  
-从 MHA 到 GQA：\(n_{\mathrm{kv}} = h\) 降为 \(n_{\mathrm{groups}}\) 或等价更小的 KV 头数 → **线性**减少 KV 张量大小。
+每层缓存 $`\mathbf{K},\mathbf{V}`$，形状 roughly $`(B, n_{\mathrm{kv}}, T, d_h)`$。  
+从 MHA 到 GQA：$`n_{\mathrm{kv}} = h`$ 降为 $`n_{\mathrm{groups}}`$ 或等价更小的 KV 头数 → **线性**减少 KV 张量大小。
 
 ### 4.4 代码骨架（概念）
 
@@ -226,7 +226,7 @@ class GQAProjection(nn.Module):
 
 ### Q5：MHA / MQA / GQA 的参数量与 KV 对比？
 
-**答**：MHA：K/V 投影参数量随头数满配；MQA：K/V **最小**；GQA：**介于中间**。KV Cache 与 K/V 头数成正比（同 \(d_h,T,L\) 下）。
+**答**：MHA：K/V 投影参数量随头数满配；MQA：K/V **最小**；GQA：**介于中间**。KV Cache 与 K/V 头数成正比（同 $`d_h,T,L`$ 下）。
 
 ### Q6：为什么 LLaMA 选择这些组件？
 
@@ -234,11 +234,11 @@ class GQAProjection(nn.Module):
 
 ### Q7：RMSNorm 的计算复杂度？
 
-**答**：相对 LN **略低**（少均值）；主项仍是 \(O(d)\) 每 token；相对整体 \(O(n^2 d)\) attention 常可忽略。
+**答**：相对 LN **略低**（少均值）；主项仍是 $`O(d)`$ 每 token；相对整体 $`O(n^2 d)`$ attention 常可忽略。
 
 ### Q8：SwiGLU 对 FFN 隐层维度有什么影响？
 
-**答**：三矩阵结构下为控制总参数，常把中间维从经典 \(4d\) 调整为约 **\(8d/3\)** 量级（经验值，依实现）。
+**答**：三矩阵结构下为控制总参数，常把中间维从经典 $`4d`$ 调整为约 **$`8d/3`$** 量级（经验值，依实现）。
 
 ### Q9：GQA 如何减少 KV Cache 显存？
 
@@ -252,10 +252,10 @@ class GQAProjection(nn.Module):
 
 ## 七、练习题
 
-1. 手算 \(\mathbf{x}=(3,4)\) 的 RMS（加 \(\epsilon=0\)）与 RMSNorm（\(\alpha=(1,1)\)）。  
+1. 手算 $`\mathbf{x}=(3,4)`$ 的 RMS（加 $`\epsilon=0`$）与 RMSNorm（$`\alpha=(1,1)`$）。  
 2. 对比 LN 与 RMSNorm 的 Python 行数差异。  
 3. 为什么 SwiGLU 用 `silu` 而非 `relu`？  
-4. 若 \(n_q=32, n_{kv}=8\)，每组重复几次 K/V？  
+4. 若 $`n_q=32, n_{kv}=8`$，每组重复几次 K/V？  
 5. 解释「门控」与 LSTM 门控异同（口头）。  
 6. 为什么推理比训练更在意 KV？  
 7. 写一行：RMS 的 `torch` 实现。  
@@ -302,7 +302,7 @@ RMSNorm 保留 **按特征维缩放** 的核心作用，使每 token 向量范�
 
 ### C.2 SwiGLU 概念深化
 
-GLU 形式 \(\mathrm{GLU}(x) = \sigma(xW+V) \odot xU\) 将一半通道作门、一半作内容；SwiGLU 用 Swish 替代 sigmoid，**平滑且非饱和区更宽**，利于深层优化。
+GLU 形式 $`\mathrm{GLU}(x) = \sigma(xW+V) \odot xU`$ 将一半通道作门、一半作内容；SwiGLU 用 Swish 替代 sigmoid，**平滑且非饱和区更宽**，利于深层优化。
 
 ### C.3 GQA 概念深化
 
@@ -335,12 +335,12 @@ def gqa_attention(q, k, v, n_rep: int):
 | 主题 | 答法关键词 |
 |------|------------|
 | RMS vs LN | 无去均值、无偏置、RMS 缩放 |
-| SwiGLU | 三矩阵、门控、中间宽 \(8d/3\) |
+| SwiGLU | 三矩阵、门控、中间宽 $`8d/3`$ |
 | GQA | 少 KV 头、repeat KV、Cache↓ |
 
 ### C.6 练习题加量（15 道）
 
-1. RMSNorm 是否等价于 LN 当 \(\mu=0\)？讨论。  
+1. RMSNorm 是否等价于 LN 当 $`\mu=0`$？讨论。  
 2. 写出 RMS 与 L2 范数关系。  
 3. SwiGLU 参数量相对两层 MLP 如何估算？  
 4. 为何推理吞吐用「tokens/s」衡量？  
@@ -465,17 +465,17 @@ def gqa_attention(q, k, v, n_rep: int):
 
 ## 附录 E：SwiGLU 参数量推导草稿
 
-设模型维 \(d\)，中间维 \(d_{\mathrm{ff}}\)。SwiGLU 三矩阵：\(\mathbf{W}_1,\mathbf{V} \in \mathbb{R}^{d \times d_{\mathrm{ff}}}\)，\(\mathbf{W}_2 \in \mathbb{R}^{d_{\mathrm{ff}} \times d}\)。
+设模型维 $`d`$，中间维 $`d_{\mathrm{ff}}`$。SwiGLU 三矩阵：$`\mathbf{W}_1,\mathbf{V} \in \mathbb{R}^{d \times d_{\mathrm{ff}}}`$，$`\mathbf{W}_2 \in \mathbb{R}^{d_{\mathrm{ff}} \times d}`$。
 
-参数量近似：\(2 d d_{\mathrm{ff}} + d_{\mathrm{ff}} d = d_{\mathrm{ff}} (2d + d) = 3 d d_{\mathrm{ff}}\)（忽略 bias）。
+参数量近似：$`2 d d_{\mathrm{ff}} + d_{\mathrm{ff}} d = d_{\mathrm{ff}} (2d + d) = 3 d d_{\mathrm{ff}}`$（忽略 bias）。
 
-令与经典 \(8d^2\)（\(d_{\mathrm{ff}}=4d\) 时 \(2\cdot d \cdot 4d=8d^2\)）可比，解 \(d_{\mathrm{ff}}\) 得约 \(\frac{8}{3}d\) 量级（**示意**，常数依是否含 bias、是否融合而定）。
+令与经典 $`8d^2`$（$`d_{\mathrm{ff}}=4d`$ 时 $`2\cdot d \cdot 4d=8d^2`$）可比，解 $`d_{\mathrm{ff}}`$ 得约 $`\frac{8}{3}d`$ 量级（**示意**，常数依是否含 bias、是否融合而定）。
 
 ---
 
 ## 附录 F：RMSNorm 反向传播直觉（了解）
 
-RMSNorm 对 \(\mathbf{x}\) 的梯度涉及 RMS 分母；实现需数值稳定；PyTorch `autograd` 已处理。
+RMSNorm 对 $`\mathbf{x}`$ 的梯度涉及 RMS 分母；实现需数值稳定；PyTorch `autograd` 已处理。
 
 ---
 
@@ -622,14 +622,14 @@ RMSNorm 对 \(\mathbf{x}\) 的梯度涉及 RMS 分母；实现需数值稳定；
 ## 附录 L：面试追问 20 条（极简答案）
 
 1. RMSNorm 有 bias 吗？→ 通常无。  
-2. RMSNorm 可学习参数？→ `weight` \(\alpha\)。  
+2. RMSNorm 可学习参数？→ `weight` $`\alpha`$。  
 3. SwiGLU 几个 Linear？→ 常三个。  
-4. SiLU 与 Swish？→ 常等价（\(\beta=1\)）。  
+4. SiLU 与 Swish？→ 常等价（$`\beta=1`$）。  
 5. GQA 谁提出？→ 多篇工作，LLaMA2 推广。  
 6. MQA 论文？→ Shazeer 等。  
 7. 为何不叫 MHA-GQA？→ 命名习惯。  
 8. KV 头数能任意吗？→ 需整除 Q 头数。  
-9. \(d_h\) 会变吗？→ 通常 \(d/h\) 固定。  
+9. $`d_h`$ 会变吗？→ 通常 $`d/h`$ 固定。  
 10. SwiGLU 中间宽谁定？→ 架构搜索/经验。  
 11. 还能用 GELU FFN 吗？→ 可以，效果权衡。  
 12. RMSNorm 用于输出？→ 视实现，常在子层前。  
