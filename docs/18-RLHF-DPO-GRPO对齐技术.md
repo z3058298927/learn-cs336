@@ -33,9 +33,9 @@
 
 | 步骤 | 名称 | 作用 |
 |------|------|------|
-| **1** | **SFT 模型作起点** | 用高质量指令–回答数据微调基座，得到「会听话、会对话格式」的初始策略；该 checkpoint 常同时作为后续 RL 的 **初始策略** 与 **参考模型 \(\pi_{\mathrm{ref}}\)** 的来源（参考模型多 **冻结** 或极慢更新） |
-| **2** | **奖励模型（RM）训练** | 收集人类偏好数据 \((x, y_w, y_l)\)，用 **Bradley–Terry（BT）** 等配对模型学习标量 \(r_\phi(x,y)\)，近似人类排序 |
-| **3** | **PPO 等策略优化** | 以 RM 为奖励信号优化 \(\pi_\theta\)，并加 **KL 到 \(\pi_{\mathrm{ref}}\)**，在「刷分」与「别偏离 SFT 太远」之间折中 |
+| **1** | **SFT 模型作起点** | 用高质量指令–回答数据微调基座，得到「会听话、会对话格式」的初始策略；该 checkpoint 常同时作为后续 RL 的 **初始策略** 与 **参考模型 $`\pi_{\mathrm{ref}}`$** 的来源（参考模型多 **冻结** 或极慢更新） |
+| **2** | **奖励模型（RM）训练** | 收集人类偏好数据 $`(x, y_w, y_l)`$，用 **Bradley–Terry（BT）** 等配对模型学习标量 $`r_\phi(x,y)`$，近似人类排序 |
+| **3** | **PPO 等策略优化** | 以 RM 为奖励信号优化 $`\pi_\theta`$，并加 **KL 到 $`\pi_{\mathrm{ref}}`$**，在「刷分」与「别偏离 SFT 太远」之间折中 |
 
 直觉：**SFT** 教格式与基本服从；**RM** 定义「什么叫更好」；**RL** 把「更好」变成可优化目标。
 
@@ -43,10 +43,10 @@
 
 ### 1.3 步骤 1：SFT 模型作为起点
 
-给定上下文 \(x\)（单轮指令或多轮对话），策略 \(\pi_\theta(y\mid x)\) 在 SFT 阶段通过 **负对数似然**（常对 assistant 段 mask 后计算）模仿示范。完成后得到 **SFT 模型**：
+给定上下文 $`x`$（单轮指令或多轮对话），策略 $`\pi_\theta(y\mid x)`$ 在 SFT 阶段通过 **负对数似然**（常对 assistant 段 mask 后计算）模仿示范。完成后得到 **SFT 模型**：
 
 - 作为 **PPO 的初始策略**，避免从随机策略冷启动；
-- 初始化或拷贝出 **\(\pi_{\mathrm{ref}}\)**，用于后续 KL 惩罚，锚定「可接受行为」邻域。
+- 初始化或拷贝出 **$`\pi_{\mathrm{ref}}`$**，用于后续 KL 惩罚，锚定「可接受行为」邻域。
 
 **面试要点**：SFT 无法区分「两个都不错但人类更喜欢 A」这类细粒度偏好，因此需要偏好数据 + RM 或 DPO 类直接偏好目标。
 
@@ -56,17 +56,17 @@
 
 #### 偏好数据形态
 
-典型为 **\((x, y_w, y_l)\)**：同一 prompt \(x\) 下，**chosen** \(y_w\) 与 **rejected** \(y_l\)。来源可包括：人类并排标注、排序多条候选、或 **AI 反馈（RLAIF）** 生成的合成偏好对。
+典型为 **$`(x, y_w, y_l)`$**：同一 prompt $`x`$ 下，**chosen** $`y_w`$ 与 **rejected** $`y_l`$。来源可包括：人类并排标注、排序多条候选、或 **AI 反馈（RLAIF）** 生成的合成偏好对。
 
 #### Bradley–Terry 模型
 
-将「\(y_w\) 优于 \(y_l\)」的概率写成与 **隐式效用差** 相关的 logistic 形式。若用可学习标量奖励 \(r_\phi(x,y)\) 近似人类效用，常见写法为：
+将「$`y_w`$ 优于 $`y_l`$」的概率写成与 **隐式效用差** 相关的 logistic 形式。若用可学习标量奖励 $`r_\phi(x,y)`$ 近似人类效用，常见写法为：
 
-\[
+$$
 P(y_w \succ y_l \mid x) = \sigma\big(r_\phi(x,y_w) - r_\phi(x,y_l)\big)
-\]
+$$
 
-训练时最大化该模型下的对数似然，等价于让 **chosen 的奖励高于 rejected**。RM 常为与策略同族的 **Transformer**：输入 \((x,y)\) 拼接，取末 token 隐状态经线性层输出 **标量奖励**。
+训练时最大化该模型下的对数似然，等价于让 **chosen 的奖励高于 rejected**。RM 常为与策略同族的 **Transformer**：输入 $`(x,y)`$ 拼接，取末 token 隐状态经线性层输出 **标量奖励**。
 
 **工程注意**：RM 易出现 **长度偏置**（更长回答分更高）；需长度归一、截断或数据构造控制；奖励 **数值尺度** 需与后续 PPO 的超参（如 advantage 归一化）匹配。
 
@@ -76,21 +76,21 @@ P(y_w \succ y_l \mid x) = \sigma\big(r_\phi(x,y_w) - r_\phi(x,y_l)\big)
 
 #### PPO 在 LM 中的角色
 
-将文本生成视为序列决策：每步选 token；**RM** 常在 **完整回答** 后给出终端奖励（可叠加逐步 KL 惩罚）。**价值网络 \(V_\psi\)** 估计从某前缀出发的期望回报，用于 **GAE** 等 **优势函数** \(A_t\)，降低策略梯度方差。
+将文本生成视为序列决策：每步选 token；**RM** 常在 **完整回答** 后给出终端奖励（可叠加逐步 KL 惩罚）。**价值网络 $`V_\psi`$** 估计从某前缀出发的期望回报，用于 **GAE** 等 **优势函数** $`A_t`$，降低策略梯度方差。
 
 #### 裁剪目标（Clipped Surrogate）
 
-用重要性比 \(r_t(\theta)=\frac{\pi_\theta(a_t\mid s_t)}{\pi_{\mathrm{old}}(a_t\mid s_t)}\) 利用旧策略样本更新，并对目标 **clip**，限制单次更新幅度：
+用重要性比 $`r_t(\theta)=\frac{\pi_\theta(a_t\mid s_t)}{\pi_{\mathrm{old}}(a_t\mid s_t)}`$ 利用旧策略样本更新，并对目标 **clip**，限制单次更新幅度：
 
-\[
+$$
 L^{\mathrm{CLIP}}(\theta)=\mathbb{E}_t\left[\min\left(r_t(\theta)A_t,\ \mathrm{clip}(r_t(\theta),1-\epsilon,1+\epsilon)A_t\right)\right]
-\]
+$$
 
 直觉：**别把策略一步改太狠**，否则分布剧变、训练易崩。
 
 #### KL 惩罚：贴近 SFT 参考模型
 
-目标中常加入 **\(\beta\,\mathrm{KL}(\pi_\theta\,\|\,\pi_{\mathrm{ref}})\)**（或等价约束），使优化后的策略 **不要偏离 SFT 参考太远**：
+目标中常加入 **$`\beta\,\mathrm{KL}(\pi_\theta\,\|\,\pi_{\mathrm{ref}})`$**（或等价约束），使优化后的策略 **不要偏离 SFT 参考太远**：
 
 - RM 只是人类偏好的 **近似**，在未见区域可能被 **过度优化**；
 - 无 KL 时，策略可能找到 **RM 盲点**（reward hacking），对人类很糟但对 RM 分高。
@@ -103,7 +103,7 @@ KL 起到 **信任域**：在参考模型附近的「安全邻域」内提升期
 |------|------|
 | **训练不稳定** | 奖励尺度、优势归一化、学习率、clip 系数、熵 bonus 需联合调节；策略与价值网络估计滞后于分布漂移 |
 | **Reward hacking** | 模型利用 RM 漏洞刷分（冗长、固定讨好句式、格式技巧），与人类真实偏好背离 |
-| **算力与显存：四模型** | 经典实现需同时维护 **(1) 策略 \(\pi_\theta\)**、**(2) 旧策略 / rollout 缓存用于 ratio**、**(3) 参考模型 \(\pi_{\mathrm{ref}}\)**、**(4) 奖励模型 \(r_\phi\)**；若使用 **价值网络**，则再加 **critic**。业界常说「四个大模型」量级开销，指 **多路前向** 与优化器状态叠加，对显存与吞吐压力极大 |
+| **算力与显存：四模型** | 经典实现需同时维护 **(1) 策略 $`\pi_\theta`$**、**(2) 旧策略 / rollout 缓存用于 ratio**、**(3) 参考模型 $`\pi_{\mathrm{ref}}`$**、**(4) 奖励模型 $`r_\phi`$**；若使用 **价值网络**，则再加 **critic**。业界常说「四个大模型」量级开销，指 **多路前向** 与优化器状态叠加，对显存与吞吐压力极大 |
 
 ---
 
@@ -115,20 +115,20 @@ KL 起到 **信任域**：在参考模型附近的「安全邻域」内提升期
 
 #### DPO 损失（交叉熵形式在偏好对上）
 
-设 \(\sigma\) 为 logistic，\(\beta>0\) 控制偏离参考模型的强度。DPO 常写为：
+设 $`\sigma`$ 为 logistic，$`\beta>0`$ 控制偏离参考模型的强度。DPO 常写为：
 
-\[
+$$
 \mathcal{L}_{\mathrm{DPO}}(\theta) = -\mathbb{E}_{(x,y_w,y_l)}\left[\log \sigma\left(\beta\left(
 \log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}
 -\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}
 \right)\right)\right]
-\]
+$$
 
 **直觉分项**：
 
-- \(\log \pi_\theta(y_w\mid x) - \log \pi_\theta(y_l\mid x)\)：提高 chosen、压低 rejected 的似然；
-- 减去 \(\log \pi_{\mathrm{ref}}\)：**相对参考模型归一化**，避免把两边概率一起抬高；
-- \(\beta\)：越大越强调偏好对比，过大可能不稳定或损害通用行为。
+- $`\log \pi_\theta(y_w\mid x) - \log \pi_\theta(y_l\mid x)`$：提高 chosen、压低 rejected 的似然；
+- 减去 $`\log \pi_{\mathrm{ref}}`$：**相对参考模型归一化**，避免把两边概率一起抬高；
+- $`\beta`$：越大越强调偏好对比，过大可能不稳定或损害通用行为。
 
 从形式上看，这是对 **偏好对** 的 **负对数似然（交叉熵）** 风格目标，实现上类似监督学习，**稳定且简单**。
 
@@ -165,11 +165,11 @@ KL 起到 **信任域**：在参考模型附近的「安全邻域」内提升期
 
 #### 不需要（或弱化）Critic / Value Model
 
-经典 PPO 用 \(V_\psi(s)\) 作 baseline 降方差。GRPO 对同一 \(x\) 采样 \(G\) 个回答 \(\{y^{(i)}\}_{i=1}^G\)，得奖励 \(R_i\)，用 **组内均值** 构造优势，例如：
+经典 PPO 用 $`V_\psi(s)`$ 作 baseline 降方差。GRPO 对同一 $`x`$ 采样 $`G`$ 个回答 $`\{y^{(i)}\}_{i=1}^G`$，得奖励 $`R_i`$，用 **组内均值** 构造优势，例如：
 
-\[
+$$
 A_i = R_i - \frac{1}{G}\sum_{j=1}^G R_j
-\]
+$$
 
 再代入策略梯度或 **PPO-style clip** 更新。这样用 **统计基线** 替代 **对所有状态学习一个全局 value**，在 **终端稀疏奖励**、**可验证结果** 场景尤其自然。
 
@@ -184,7 +184,7 @@ A_i = R_i - \frac{1}{G}\sum_{j=1}^G R_j
 
 | 维度 | 经典 PPO（RLHF） | GRPO |
 |------|------------------|------|
-| Baseline | 学习的 \(V_\psi\) 为主 | 组内均值等 **相对基线** |
+| Baseline | 学习的 $`V_\psi`$ 为主 | 组内均值等 **相对基线** |
 | 奖励 | 常为学得 RM | 常为 **可验证 / 规则** |
 | 采样 | rollout | **同 prompt 组采样** |
 | 适用 | 开放域偏好 | 数学、代码等 **对错清晰** 任务 |
@@ -274,7 +274,7 @@ def dpo_loss(pi_theta, pi_ref, x, y_w, y_l, beta: float):
     return -F.logsigmoid(inside).mean()
 ```
 
-**要点**：\(\pi_{\mathrm{ref}}\) 通常 **冻结**；\(\pi_\theta\) 由参考初始化；\(\beta\) 与 batch 构造影响极大。
+**要点**：$`\pi_{\mathrm{ref}}`$ 通常 **冻结**；$`\pi_\theta`$ 由参考初始化；$`\beta`$ 与 batch 构造影响极大。
 
 ### 2.4 GRPO：组内相对优势
 
@@ -286,7 +286,7 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 # 后续将 advantages 接入策略梯度或 PPO-style clip（依课程实现而定）
 ```
 
-**要点**：\(G\) 增大可降低方差但增加采样算力；奖励需在同一评判标准下可比。
+**要点**：$`G`$ 增大可降低方差但增加采样算力；奖励需在同一评判标准下可比。
 
 ---
 
@@ -294,8 +294,8 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 
 ### 3.1 一句话速记
 
-- **RLHF**：SFT → RM（BT pairwise）→ PPO + KL 锚定 \(\pi_{\mathrm{ref}}\)。
-- **RM**：学 \(r_\phi(x,y_w) > r_\phi(x,y_l)\)；推理时标量奖励驱动 RL。
+- **RLHF**：SFT → RM（BT pairwise）→ PPO + KL 锚定 $`\pi_{\mathrm{ref}}`$。
+- **RM**：学 $`r_\phi(x,y_w) > r_\phi(x,y_l)`$；推理时标量奖励驱动 RL。
 - **PPO**：clip 限步长；KL 抑制偏离与 reward hacking；**多模型前向** 推高算力与显存。
 - **DPO**：隐式奖励；对比 **log-ratio**；无显式 RM、无典型 RL 循环。
 - **GRPO**：**组采样** + **组均值基线** + **可验证奖励**；推理任务友好。
@@ -307,9 +307,9 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 
 | 主题 | 答法骨架 |
 |------|----------|
-| BT 与 RM | BT 给出 \(P(\text{win})=\sigma(r_w-r_l)\)；RM 学 \(r_\phi\) 逼近人类效用 |
-| PPO clip | ratio 超出 \([1-\epsilon,1+\epsilon]\) 时被截断，防止一步更新过大 |
-| DPO 各项 | 相对参考的 log-ratio 差；\(\beta\) 控制偏离参考的强度 |
+| BT 与 RM | BT 给出 $`P(\text{win})=\sigma(r_w-r_l)`$；RM 学 $`r_\phi`$ 逼近人类效用 |
+| PPO clip | ratio 超出 $`[1-\epsilon,1+\epsilon]`$ 时被截断，防止一步更新过大 |
+| DPO 各项 | 相对参考的 log-ratio 差；$`\beta`$ 控制偏离参考的强度 |
 | GRPO baseline | 组内减均值 ≈ 控制 prompt 难度差异的相对排序信号 |
 | 四模型成本 | policy、ref、RM、（value）；多路前向 + 优化器状态 |
 
@@ -319,25 +319,25 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 
 ### Q1：RLHF 的三个步骤分别解决什么问题？
 
-**答**：（1）**SFT**：把预训练模型变成 **遵循指令、会对话格式** 的策略，并提供 **RL 起点** 与 **参考模型** 初值。（2）**奖励模型**：把 **人类偏好** 压缩成 **可微对比信号** \(r_\phi(x,y_w) > r_\phi(x,y_l)\)，供 RL 使用。（3）**PPO（+KL）**：在 RM 标量奖励下 **提升策略**，同时用 KL **限制与 SFT 的偏离**，缓解 RM 近似误差带来的 **过度优化**。
+**答**：（1）**SFT**：把预训练模型变成 **遵循指令、会对话格式** 的策略，并提供 **RL 起点** 与 **参考模型** 初值。（2）**奖励模型**：把 **人类偏好** 压缩成 **可微对比信号** $`r_\phi(x,y_w) > r_\phi(x,y_l)`$，供 RL 使用。（3）**PPO（+KL）**：在 RM 标量奖励下 **提升策略**，同时用 KL **限制与 SFT 的偏离**，缓解 RM 近似误差带来的 **过度优化**。
 
 ---
 
 ### Q2：奖励模型如何训练？Bradley–Terry 起什么作用？
 
-**答**：数据为 **\((x,y_w,y_l)\)**。BT 假设 \(P(y_w \succ y_l\mid x)=\sigma(r_\phi(x,y_w)-r_\phi(x,y_l))\)。训练最小化 **负对数似然** \(-\log \sigma(r_w-r_l)\)，使被人类选中的回答得分更高。BT 提供了 **配对比较** 与 **标量奖励** 之间的概率桥梁，便于用 **二元交叉熵** 训练 RM。
+**答**：数据为 **$`(x,y_w,y_l)`$**。BT 假设 $`P(y_w \succ y_l\mid x)=\sigma(r_\phi(x,y_w)-r_\phi(x,y_l))`$。训练最小化 **负对数似然** $`-\log \sigma(r_w-r_l)`$，使被人类选中的回答得分更高。BT 提供了 **配对比较** 与 **标量奖励** 之间的概率桥梁，便于用 **二元交叉熵** 训练 RM。
 
 ---
 
 ### Q3：PPO 的 clip 目标在优化什么？ratio 过大或过小会怎样？
 
-**答**：在 **重要性采样** 下用旧策略数据更新新策略，clip 限制 **\(r_t=\pi_\theta/\pi_{\mathrm{old}}\)** 偏离 1 的程度。**ratio 过大**：更新步长过大，策略剧变、价值估计失效、训练不稳定。**ratio 过小**：有效梯度被截断，更新保守。clip 在 **步长与稳定性** 间折中。
+**答**：在 **重要性采样** 下用旧策略数据更新新策略，clip 限制 **$`r_t=\pi_\theta/\pi_{\mathrm{old}}`$** 偏离 1 的程度。**ratio 过大**：更新步长过大，策略剧变、价值估计失效、训练不稳定。**ratio 过小**：有效梯度被截断，更新保守。clip 在 **步长与稳定性** 间折中。
 
 ---
 
 ### Q4：RLHF 里 KL 惩罚的目标是什么？和「贴近 SFT」有什么关系？
 
-**答**：KL 约束 \(\pi_\theta\) 接近 **\(\pi_{\mathrm{ref}}\)**（常为 SFT）。RM 不能覆盖所有行为；无 KL 时策略可能 **利用 RM 漏洞** 得高分但输出 **有害或无用**。**贴近 SFT** 即保留预训练+SFT 已学的 **有用能力与语言质量**，在 **信任域** 内优化偏好。
+**答**：KL 约束 $`\pi_\theta`$ 接近 **$`\pi_{\mathrm{ref}}`$**（常为 SFT）。RM 不能覆盖所有行为；无 KL 时策略可能 **利用 RM 漏洞** 得高分但输出 **有害或无用**。**贴近 SFT** 即保留预训练+SFT 已学的 **有用能力与语言质量**，在 **信任域** 内优化偏好。
 
 ---
 
@@ -349,13 +349,13 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 
 ### Q6：DPO 的核心洞见是什么？为什么不需要显式 RM？
 
-**答**：在 BT 与某些正则化假设下，**最优策略与隐式奖励** 可写成仅依赖 **\(\pi_\theta\)** 与 **\(\pi_{\mathrm{ref}}\)** 的 **闭式关系**，从而偏好似然可直接对策略参数优化，**RM 被消去** 或 **隐含在 log-ratio 中**。实现上是对偏好对的 **sigmoid 交叉熵**，无需单独训练 \(r_\phi\)。
+**答**：在 BT 与某些正则化假设下，**最优策略与隐式奖励** 可写成仅依赖 **$`\pi_\theta`$** 与 **$`\pi_{\mathrm{ref}}`$** 的 **闭式关系**，从而偏好似然可直接对策略参数优化，**RM 被消去** 或 **隐含在 log-ratio 中**。实现上是对偏好对的 **sigmoid 交叉熵**，无需单独训练 $`r_\phi`$。
 
 ---
 
-### Q7：写出 DPO 损失并解释 \(\beta\)。
+### Q7：写出 DPO 损失并解释 $`\beta`$。
 
-**答**：\(\mathcal{L}_{\mathrm{DPO}}=-\mathbb{E}[\log\sigma(\beta(\Delta_w-\Delta_l))]\)，其中 \(\Delta_y=\log\frac{\pi_\theta(y|x)}{\pi_{\mathrm{ref}}(y|x)}\)。**\(\beta\)** 控制 **偏好对比强度** 与 **偏离参考的程度**：\(\beta\) 大则更强调「chosen 相对 rejected 的边际」，但过大可能训练不稳或 **过拟合偏好数据**。
+**答**：$`\mathcal{L}_{\mathrm{DPO}}=-\mathbb{E}[\log\sigma(\beta(\Delta_w-\Delta_l))]`$，其中 $`\Delta_y=\log\frac{\pi_\theta(y|x)}{\pi_{\mathrm{ref}}(y|x)}`$。**$`\beta`$** 控制 **偏好对比强度** 与 **偏离参考的程度**：$`\beta`$ 大则更强调「chosen 相对 rejected 的边际」，但过大可能训练不稳或 **过拟合偏好数据**。
 
 ---
 
@@ -373,7 +373,7 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 
 ### Q10：GRPO 为什么可以不需要 Value Model？
 
-**答**：Critic 用于估计 **状态值** 以降低方差。GRPO 在同一 \(x\) 下采 \(G\) 条轨迹，用 **组平均奖励** 作 **逐样本 baseline**，优势近似 \(R_i-\bar R\)，在 **终端奖励、同题可比** 的设置下提供 **零成本（无额外网络）的方差缩减**。这不等于所有任务都不需要 value，而是 **任务结构使组基线足够有效**。
+**答**：Critic 用于估计 **状态值** 以降低方差。GRPO 在同一 $`x`$ 下采 $`G`$ 条轨迹，用 **组平均奖励** 作 **逐样本 baseline**，优势近似 $`R_i-\bar R`$，在 **终端奖励、同题可比** 的设置下提供 **零成本（无额外网络）的方差缩减**。这不等于所有任务都不需要 value，而是 **任务结构使组基线足够有效**。
 
 ---
 
@@ -391,7 +391,7 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 
 ### Q13：对齐税（alignment tax）是什么？如何观察与缓解？
 
-**答**：为获得 **更安全、更听话**，在 **其他能力**（如创意、部分知识问答）上 **性能下降**。原因：KL、偏好数据偏向保守、目标与预训练不一致等。缓解：**预训练数据混合回放**、**多任务偏好**、**评测驱动调 \(\beta\) 与数据配比**。
+**答**：为获得 **更安全、更听话**，在 **其他能力**（如创意、部分知识问答）上 **性能下降**。原因：KL、偏好数据偏向保守、目标与预训练不一致等。缓解：**预训练数据混合回放**、**多任务偏好**、**评测驱动调 $`\beta`$ 与数据配比**。
 
 ---
 
@@ -404,8 +404,8 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 ## 五、练习（Practice）
 
 1. 写出 BT 假设下的 pairwise logistic 损失，并说明与 **二元分类交叉熵** 的联系。
-2. 推导：将 DPO 公式展开为仅含 \(\log\pi_\theta\) 与 \(\log\pi_{\mathrm{ref}}\) 的差，并标注 \(\beta\) 出现位置。
-3. 手算：同一数学题 4 个样本奖励为 \([1,0,0,1]\)，求组内优势向量。
+2. 推导：将 DPO 公式展开为仅含 $`\log\pi_\theta`$ 与 $`\log\pi_{\mathrm{ref}}`$ 的差，并标注 $`\beta`$ 出现位置。
+3. 手算：同一数学题 4 个样本奖励为 $`[1,0,0,1]`$，求组内优势向量。
 4. 解释 PPO 中若 **删除 clip**、仅保留 KL，训练可能出现什么现象？
 5. 举两个 **reward hacking** 例子，并各给一条 **非神经网络** 缓解手段。
 6. 对比 **RLAIF** 与 **人类标注** 在 **成本、偏差、适用场景** 三维上的差异。
@@ -428,15 +428,15 @@ def group_relative_advantages(rewards_group: torch.Tensor) -> torch.Tensor:
 
 | 符号 | 含义 |
 |------|------|
-| \(x\) | prompt / 上下文 |
-| \(y_w, y_l\) | chosen / rejected |
-| \(r_\phi\) | 奖励模型 |
-| \(\pi_\theta\) | 当前策略 |
-| \(\pi_{\mathrm{ref}}\) | 参考策略（常冻结） |
-| \(\beta\) | DPO 温度系数或 RL 中 KL 系数（语境依章节） |
-| \(\sigma\) | logistic 函数 |
-| \(\mathrm{KL}\) | Kullback–Leibler 散度 |
-| \(G\) | 组采样条数 |
+| $`x`$ | prompt / 上下文 |
+| $`y_w, y_l`$ | chosen / rejected |
+| $`r_\phi`$ | 奖励模型 |
+| $`\pi_\theta`$ | 当前策略 |
+| $`\pi_{\mathrm{ref}}`$ | 参考策略（常冻结） |
+| $`\beta`$ | DPO 温度系数或 RL 中 KL 系数（语境依章节） |
+| $`\sigma`$ | logistic 函数 |
+| $`\mathrm{KL}`$ | Kullback–Leibler 散度 |
+| $`G`$ | 组采样条数 |
 
 ---
 
