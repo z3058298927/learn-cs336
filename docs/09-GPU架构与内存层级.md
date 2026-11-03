@@ -101,9 +101,9 @@ NVIDIA CUDA 设备上，**同一时刻、同一指令** 往往由 **一组线程
 
 #### 5.1 算术强度（Arithmetic Intensity）
 
-\[
+$$
 \text{Arithmetic Intensity} = \frac{\text{FLOPs（或有效计算量）}}{\text{Bytes Transferred（与实现相关的内存流量）}}
-\]
+$$
 
 单位常用 **FLOPs/Byte**：含义是 **每从内存体系搬运 1 字节，平均做多少次浮点运算**。  
 **强度越高**，越可能 **吃满算力**；**强度越低**，越可能 **吃满内存带宽**。
@@ -118,7 +118,7 @@ NVIDIA CUDA 设备上，**同一时刻、同一指令** 往往由 **一组线程
 
 #### 5.3 为什么 Attention（朴素实现）常是 memory-bound
 
-- **朴素 Attention** 往往产生 **大尺寸中间张量**（如 \(O(B \cdot H \cdot T^2)\) 量级），并多次 **读写 HBM**。
+- **朴素 Attention** 往往产生 **大尺寸中间张量**（如 $`O(B \cdot H \cdot T^2)`$ 量级），并多次 **读写 HBM**。
 - 相对 **GEMM**，**每字节对应的有效 FLOPs** 不够高，或 **实现上 IO 次数过多**，容易 **先触及 HBM 带宽** 而非 Tensor Core 峰值。
 - **FlashAttention** 通过 **分块、融合、重算**，**减少 HBM 往返**，把瓶颈向 **计算** 方向推——这是 Lesson 10 的核心动机之一。
 
@@ -373,7 +373,7 @@ y.sum().backward()
 
 ## 练习
 
-1. **推导**：对 \(A\in\mathbb{R}^{M\times K}, B\in\mathbb{R}^{K\times N}\)，FP32 GEMM 的 **FLOPs** 与 **朴素读写字节上界**；写出 **算术强度** 表达式；当 \(M=N=K\to\infty\) 时强度趋势？
+1. **推导**：对 $`A\in\mathbb{R}^{M\times K}, B\in\mathbb{R}^{K\times N}`$，FP32 GEMM 的 **FLOPs** 与 **朴素读写字节上界**；写出 **算术强度** 表达式；当 $`M=N=K\to\infty`$ 时强度趋势？
 
 2. **对比**：**LayerNorm → Dropout → MatMul** 中，哪段更可能 **memory-bound**？为什么？
 
