@@ -160,11 +160,11 @@ Below is an instruction that describes a task, paired with an input that provide
 2. **梯度效率**：避免在用户措辞上过拟合，把容量用在「如何答」上。
 3. **与推理一致**：推理时模型只看到前文，不会「预测用户下一句」。
 
-**数学上**，若 \(m_t \in \{0,1\}\) 表示位置 \(t\) 是否参与监督，常写作：
+**数学上**，若 $`m_t \in \{0,1\}`$ 表示位置 $`t`$ 是否参与监督，常写作：
 
-\[
+$$
 \mathcal{L}_{\text{SFT}} = - \frac{1}{\sum_t m_t} \sum_{t} m_t \log p_\theta(x_t \mid x_{<t})
-\]
+$$
 
 实现上需注意：**多轮对话**中每一轮 assistant 段都要计入 loss；若使用工具调用等特殊格式，团队需统一规则（哪些 token 算模型责任）。
 
@@ -184,31 +184,31 @@ Below is an instruction that describes a task, paired with an input that provide
 
 ### 1.7 参数高效微调：LoRA 与 QLoRA
 
-#### LoRA 数学：\(W = W_0 + BA\)，秩 \(r\) 与 \(\alpha\) 缩放
+#### LoRA 数学：$`W = W_0 + BA`$，秩 $`r`$ 与 $`\alpha`$ 缩放
 
-对某线性层原权重 \(W_0 \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}\)（实现中常等价讨论转置），LoRA **冻结** \(W_0\)，仅训练低秩增量：
+对某线性层原权重 $`W_0 \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}`$（实现中常等价讨论转置），LoRA **冻结** $`W_0`$，仅训练低秩增量：
 
-\[
+$$
 W = W_0 + \Delta W,\quad \Delta W = B A
-\]
+$$
 
-其中 \(B \in \mathbb{R}^{d_{\text{out}} \times r}\)，\(A \in \mathbb{R}^{r \times d_{\text{in}}}\)，**秩 \(r \ll \min(d_{\text{in}}, d_{\text{out}})\)**。
+其中 $`B \in \mathbb{R}^{d_{\text{out}} \times r}`$，$`A \in \mathbb{R}^{r \times d_{\text{in}}}`$，**秩 $`r \ll \min(d_{\text{in}}, d_{\text{out}})`$**。
 
-前向（以输入 \(x\) 为例，忽略 bias）：
+前向（以输入 $`x`$ 为例，忽略 bias）：
 
-\[
+$$
 y = W_0 x + \frac{\alpha}{r} \cdot B A x
-\]
+$$
 
-**\(\alpha\)** 为 LoRA 缩放超参（与 \(r\) 常一起调）：\(\alpha/r\) 使在改变 \(r\) 时保持**更新幅度的大致可比性**（不同框架命名可能为 `lora_alpha`，实现细节以所用库为准）。
+**$`\alpha`$** 为 LoRA 缩放超参（与 $`r`$ 常一起调）：$`\alpha/r`$ 使在改变 $`r`$ 时保持**更新幅度的大致可比性**（不同框架命名可能为 `lora_alpha`，实现细节以所用库为准）。
 
-**Rank \(r\)**：越大容量越大，可训练参数约 \(r(d_{\text{in}}+d_{\text{out}})\)；过大可能过拟合，常见 8、16、32、64。
+**Rank $`r`$**：越大容量越大，可训练参数约 $`r(d_{\text{in}}+d_{\text{out}})`$；过大可能过拟合，常见 8、16、32、64。
 
-**施加在哪些层**：常见对 **注意力层的 \(W_q, W_k, W_v, W_o\)**（及有时 FFN）加 LoRA；**全层 LoRA** 更强但更贵。面试可答：**先 attention，再视任务扩到 FFN**。
+**施加在哪些层**：常见对 **注意力层的 $`W_q, W_k, W_v, W_o`$**（及有时 FFN）加 LoRA；**全层 LoRA** 更强但更贵。面试可答：**先 attention，再视任务扩到 FFN**。
 
 #### 为什么 LoRA 往往有效：低秩与内在维度
 
-**直观解释**：大量经验表明，**特定任务上的有效权重更新**往往落在**低维子空间**内——即「微调需要的方向」不必填满整个高维权重矩阵。用 \(BA\) 低秩分解，用较少参数近似该子空间中的主要更新方向，从而**省显存、省存储、减轻灾难性遗忘**（相对全参而言）。
+**直观解释**：大量经验表明，**特定任务上的有效权重更新**往往落在**低维子空间**内——即「微调需要的方向」不必填满整个高维权重矩阵。用 $`BA`$ 低秩分解，用较少参数近似该子空间中的主要更新方向，从而**省显存、省存储、减轻灾难性遗忘**（相对全参而言）。
 
 **补充**：这与「**内在维度（intrinsic dimension）**」相关文献一致：许多下游适配可用远小于全参的自由度描述。**并非**声称所有能力都低秩，而是**任务相关的偏移**常可低秩近似。
 
@@ -229,9 +229,9 @@ y = W_0 x + \frac{\alpha}{r} \cdot B A x
 
 | 维度 | Full Fine-Tuning | LoRA | QLoRA |
 |------|------------------|------|-------|
-| **更新对象** | 全部权重 | 冻结 \(W_0\)，训 \(A,B\) | 同 LoRA，基座 4-bit |
+| **更新对象** | 全部权重 | 冻结 $`W_0`$，训 $`A,B`$ | 同 LoRA，基座 4-bit |
 | **显存 / 优化器** | 最高（全参 Adam 状态） | 较低 | **最低**（基座量化） |
-| **表达能力上限** | 最高 | 受 \(r\) 与层选择限制 | 同 LoRA（数值上受量化影响） |
+| **表达能力上限** | 最高 | 受 $`r`$ 与层选择限制 | 同 LoRA（数值上受量化影响） |
 | **Checkpoint** | 全量大文件 | 小适配器权重 | 小适配器 + 可选合并脚本 |
 | **灾难性遗忘** | 相对更易「改写」基座 | 通常较轻 | 通常较轻 |
 | **典型场景** | 数据足、需深度改基座 | 默认 PEFT、多任务多适配器 | **单卡大模型**、资源紧 |
@@ -277,15 +277,15 @@ Stanford **CS336 Assignment 5（Alignment）** 在课程叙事中把 **SFT、RL�
 1. **数据**：数学推理等场景下的 **instruction–response**（常含 **思维链 CoT** 与可解析答案格式，如 `\boxed{}`）。
 2. **损失**：标准 **Causal LM 交叉熵**，**仅对 assistant 完成部分** 累计；`labels` 在 user/system/padding 处 **ignore**。
 3. **训练**：学习率、epoch、精度（BF16 等）、梯度裁剪；可选 **LoRA/QLoRA** 以降低资源占用。
-4. **接口**：SFT 产出的 checkpoint 常作为 **RL 阶段的初始策略** 与 **冻结的 reference 模型** \(\pi_{\text{ref}}\)，用于 **KL 惩罚** 或优势基线。
+4. **接口**：SFT 产出的 checkpoint 常作为 **RL 阶段的初始策略** 与 **冻结的 reference 模型** $`\pi_{\text{ref}}`$，用于 **KL 惩罚** 或优势基线。
 
 **公式对齐**（与 Assignment 5 文档一致）：
 
-\[
+$$
 \mathcal{L}_{\text{SFT}} = - \frac{1}{\sum_t m_t} \sum_{t} m_t \log p_\theta(x_t \mid x_{<t})
-\]
+$$
 
-其中 \(m_t\) 仅在 **模型应生成的 token** 上为 1。具体文件名与测试以**当年官方仓库**为准。
+其中 $`m_t`$ 仅在 **模型应生成的 token** 上为 1。具体文件名与测试以**当年官方仓库**为准。
 
 ---
 
@@ -468,7 +468,7 @@ tokenizer.save_pretrained("./sft-lora-adapter")
 4. **Loss**：**只对 assistant 生成段**做 NTP；system/user/pad **mask**。
 5. **Padding / Packing**：pad 不参与 loss；packing 需防跨样本注意力与错误 position。
 6. **数据**：人工 + Self-Instruct + Evol-Instruct + 蒸馏；**质量、多样性、一致性**。
-7. **LoRA**：\(W=W_0+BA\)，\(\alpha/r\) 缩放，\(r\) 控容量；**低秩有效**与任务子空间直觉。
+7. **LoRA**：$`W=W_0+BA`$，$`\alpha/r`$ 缩放，$`r`$ 控容量；**低秩有效**与任务子空间直觉。
 8. **QLoRA**：4-bit 基座 + LoRA 适配器，**省显存**。
 9. **遗忘**：混合数据、小 LR、少 epoch、PEFT、KL、回放。
 10. **评测**：**MMLU**（知识）、**HumanEval**（代码）、**MT-Bench**（多轮对话）+ 人工。
@@ -497,15 +497,15 @@ tokenizer.save_pretrained("./sft-lora-adapter")
 
 ---
 
-### Q4：LoRA 的公式是什么？\(\alpha\) 和 \(r\) 起什么作用？
+### Q4：LoRA 的公式是什么？$`\alpha`$ 和 $`r`$ 起什么作用？
 
-**答**：\(\Delta W = BA\)，\(B\in\mathbb{R}^{d_{\text{out}}\times r}\)，\(A\in\mathbb{R}^{r\times d_{\text{in}}}\)，前向常写 \(y = W_0 x + \frac{\alpha}{r} BAx\)。**\(r\)** 控制秩与容量；**\(\alpha\)** 与 **\(\alpha/r\)** 调节 LoRA 分支幅度，便于在改变 \(r\) 时保持尺度可比。实际常用 **PEFT** 实现，超参需在小验证集上扫。
+**答**：$`\Delta W = BA`$，$`B\in\mathbb{R}^{d_{\text{out}}\times r}`$，$`A\in\mathbb{R}^{r\times d_{\text{in}}}`$，前向常写 $`y = W_0 x + \frac{\alpha}{r} BAx`$。**$`r`$** 控制秩与容量；**$`\alpha`$** 与 **$`\alpha/r`$** 调节 LoRA 分支幅度，便于在改变 $`r`$ 时保持尺度可比。实际常用 **PEFT** 实现，超参需在小验证集上扫。
 
 ---
 
 ### Q5：为什么说权重更新具有低秩性？LoRA 为什么有效？
 
-**答**：经验与「内在维度」研究表明，许多**任务特定微调**的有效更新可集中在**低维子空间**，不必填满整个权重矩阵。LoRA 用 \(BA\) **参数化该子空间中的主要方向**，从而**大幅减少可训练参数与显存**，并常减轻对基座的全局改写。**注意**：不是断言所有现象都低秩，而是**适配偏移**常可低秩近似。
+**答**：经验与「内在维度」研究表明，许多**任务特定微调**的有效更新可集中在**低维子空间**，不必填满整个权重矩阵。LoRA 用 $`BA`$ **参数化该子空间中的主要方向**，从而**大幅减少可训练参数与显存**，并常减轻对基座的全局改写。**注意**：不是断言所有现象都低秩，而是**适配偏移**常可低秩近似。
 
 ---
 
