@@ -26,7 +26,7 @@
 
 ### 2.2 为什么需要 BPE？
 
-字符级序列太长，词表级分词对未登录词不友好。**字节级 BPE** 在「子词」与「字节」之间折中：既能表示任意 UTF-8 文本，又能通过 merge 得到高频片段，控制词表大小 $V$。
+字符级序列太长，词表级分词对未登录词不友好。**字节级 BPE** 在「子词」与「字节」之间折中：既能表示任意 UTF-8 文本，又能通过 merge 得到高频片段，控制词表大小 $`V`$。
 
 ### 2.3 为什么是 Decoder-only Transformer？
 
@@ -34,16 +34,16 @@
 
 ### 2.4 RoPE 一句话
 
-**旋转位置编码（RoPE）** 把位置信息编码进 $Q,K$ 的二维子空间中，通过旋转实现相对位置关系；现代 LLM 常用 RoPE 替代可学习绝对位置嵌入。实现时要注意：**旋转施加在 head 维度的正确子空间上**，且与 **因果 mask** 分工明确（RoPE 管位置，mask 管「不能看未来」）。
+**旋转位置编码（RoPE）** 把位置信息编码进 $`Q,K`$ 的二维子空间中，通过旋转实现相对位置关系；现代 LLM 常用 RoPE 替代可学习绝对位置嵌入。实现时要注意：**旋转施加在 head 维度的正确子空间上**，且与 **因果 mask** 分工明确（RoPE 管位置，mask 管「不能看未来」）。
 
 ### 2.5 RMSNorm / SwiGLU 一句话
 
 - **RMSNorm**：用均方根归一化，比 LayerNorm 略省参数，常见于 LLaMA 系。
-- **SwiGLU FFN**：$\mathrm{SwiGLU}(x) = (\mathrm{Swish}(xW_1) \odot xW_2) W_3$（形状以作业定义为准），表达能力与 GELU-MLP 不同，是当前大模型常用 FFN 形态。
+- **SwiGLU FFN**：$`\mathrm{SwiGLU}(x) = (\mathrm{Swish}(xW_1) \odot xW_2) W_3`$（形状以作业定义为准），表达能力与 GELU-MLP 不同，是当前大模型常用 FFN 形态。
 
 ### 2.6 交叉熵在做什么？
 
-对每个位置，模型输出 $V$ 维 logits，与「真实下一个 token」做 **多分类交叉熵**。语言建模通常把 `(B, T, V)` 与右移一位的 `labels` 对齐后 **展平** 成 `(B*(T-1), V)` 与 `(B*(T-1),)` 再计算（忽略 padding 位置时用 `ignore_index`）。
+对每个位置，模型输出 $`V`$ 维 logits，与「真实下一个 token」做 **多分类交叉熵**。语言建模通常把 `(B, T, V)` 与右移一位的 `labels` 对齐后 **展平** 成 `(B*(T-1), V)` 与 `(B*(T-1),)` 再计算（忽略 padding 位置时用 `ignore_index`）。
 
 ### 2.7 AdamW 与「手写」的意义
 
@@ -51,11 +51,11 @@
 
 ### 2.8 学习率调度
 
-常见组合：**warmup**（步数或比例）+ **cosine decay** 或 **linear decay**。调度对象通常是 **当前 step 的有效学习率** $\eta_t$，再代入 AdamW 更新式。
+常见组合：**warmup**（步数或比例）+ **cosine decay** 或 **linear decay**。调度对象通常是 **当前 step 的有效学习率** $`\eta_t`$，再代入 AdamW 更新式。
 
 ### 2.9 Top-p 采样
 
-从最高概率的 token 开始累加概率，直到超过阈值 $p$，再在该集合内按重归一化概率采样；可避免长尾噪声，比纯 greedy 更自然。
+从最高概率的 token 开始累加概率，直到超过阈值 $`p`$，再在该集合内按重归一化概率采样；可避免长尾噪声，比纯 greedy 更自然。
 
 ---
 
@@ -72,9 +72,9 @@
 | # | 组件 | 要点 |
 |---|------|------|
 | 1 | **BPE Tokenizer** | 预分词（常为 GPT-2 风格正则）、字节映射、pair 统计、迭代 merge、`encode` / `decode`、特殊 token 与 tie-break |
-| 2 | **Transformer LM** | Token embedding；**RoPE** 与 **MHA**（多头、因果 mask）；**RMSNorm**；**SwiGLU FFN**；最终 **lm_head**（$D \to V$） |
+| 2 | **Transformer LM** | Token embedding；**RoPE** 与 **MHA**（多头、因果 mask）；**RMSNorm**；**SwiGLU FFN**；最终 **lm_head**（$`D \to V`$） |
 | 3 | **Cross-entropy loss** | 时间维 **shift**、展平、`ignore_index` 处理 padding |
-| 4 | **AdamW** | $m_t,v_t$、偏差修正、**解耦** `weight_decay`、`param_groups` |
+| 4 | **AdamW** | $`m_t,v_t`$、偏差修正、**解耦** `weight_decay`、`param_groups` |
 | 5 | **Training loop** | `zero_grad` → forward → loss → `backward` →（可选 `clip_grad_norm_`）→ `step`；**LR schedule** |
 | 6 | **Text generation** | 自回归逐 token；**top-p**（nucleus）采样；`eval` + `torch.no_grad()` |
 
@@ -95,22 +95,22 @@
 
 ## 四、端到端代码走读（串联所有组件）
 
-下面用 **记号**：batch $B$，序列长度 $T$，宽度 $D$，层数 $L$，头数 $H$，词表 $V$，头维 $d_\text{head}=D/H$（需整除）。
+下面用 **记号**：batch $`B`$，序列长度 $`T`$，宽度 $`D`$，层数 $`L`$，头数 $`H`$，词表 $`V`$，头维 $`d_\text{head}=D/H`$（需整除）。
 
 ### 4.1 数据进入模型之前
 
 1. 原始字符串 `text`。
 2. `ids = tokenizer.encode(text)` → `List[int]`，长度约与字节/子词数相关。
-3. 构造训练 batch：`input_ids` 形状 `(B, T)`，`dtype=torch.long`，$\max(\text{ids}) < V$。
+3. 构造训练 batch：`input_ids` 形状 `(B, T)`，`dtype=torch.long`，$`\max(\text{ids}) < V`$。
 4. `input_ids = input_ids.to(device)`，`model = model.to(device)`。
 
 ### 4.2 前向（Transformer LM）
 
 1. **Embedding**：`x = embed(input_ids)` → `(B, T, D)`。
-2. **RoPE**：在注意力内部对 $Q,K$ 按位置旋转（实现细节见作业；注意 **不要** 把 RoPE 当成因果 mask 的替代品）。
+2. **RoPE**：在注意力内部对 $`Q,K`$ 按位置旋转（实现细节见作业；注意 **不要** 把 RoPE 当成因果 mask 的替代品）。
 3. **L 个 Decoder block**（示意）：  
    `x = x + attn(norm(x))`；`x = x + ffn(norm(x))`（Pre-LN 写法为例）。
-4. **Causal MHA**：注意力 logits 为 `(B, H, T, T)`（或等价形状），对 $j>i$ 的位置加 mask，softmax 后与未来无关。
+4. **Causal MHA**：注意力 logits 为 `(B, H, T, T)`（或等价形状），对 $`j>i`$ 的位置加 mask，softmax 后与未来无关。
 5. **输出头**：`logits = lm_head(norm(x))` → `(B, T, V)`。
 
 ### 4.3 损失
@@ -250,7 +250,7 @@ uv run pytest -k "bpe"                   # 按名称子串筛选
 
 | 现象 | 常见原因 |
 |------|-----------|
-| matmul 维度错误 | $QK^\top$ 中 head 维与 `d_head` 混淆；`transpose` 写错 |
+| matmul 维度错误 | $`QK^\top`$ 中 head 维与 `d_head` 混淆；`transpose` 写错 |
 | `cross_entropy` 报错 | logits 与 labels 长度差 1；`V` 不在最后一维 |
 | attention 广播失败 | 未 reshape 为 `(B, H, T, d)`；mask 长度不是 `T` |
 
@@ -290,13 +290,13 @@ uv run pytest -k "bpe"                   # 按名称子串筛选
 
 | 项 | Toy / 调试建议 | 说明 |
 |----|----------------|------|
-| $D$（d_model） | 128～384 | 先保证能过拟合小数据 |
-| $L$（层数） | 2～6 | 深模型更难调，先浅后深 |
-| $H$（头数） | $D$ 整除 $d_\text{head}$，如 4～8 | 与 RoPE 实现一起测 |
-| $T$（序列长度） | 128～512 | 显存 $\propto B \cdot T^2$（注意力） |
-| $B$（batch） | 从 1～8 起 | OOM 则减 $B$ 或梯度累积 |
-| 学习率 $\eta$ | $1\mathrm{e}{-4}$～$3\mathrm{e}{-4}$ 量级试探 | 配合 warmup |
-| weight decay $\lambda$ | $0.01$～$0.1$（常见范围） | bias/LayerNorm 常不衰减 |
+| $`D`$（d_model） | 128～384 | 先保证能过拟合小数据 |
+| $`L`$（层数） | 2～6 | 深模型更难调，先浅后深 |
+| $`H`$（头数） | $`D`$ 整除 $`d_\text{head}`$，如 4～8 | 与 RoPE 实现一起测 |
+| $`T`$（序列长度） | 128～512 | 显存 $`\propto B \cdot T^2`$（注意力） |
+| $`B`$（batch） | 从 1～8 起 | OOM 则减 $`B`$ 或梯度累积 |
+| 学习率 $`\eta`$ | $`1\mathrm{e}{-4}`$～$`3\mathrm{e}{-4}`$ 量级试探 | 配合 warmup |
+| weight decay $`\lambda`$ | $`0.01`$～$`0.1`$（常见范围） | bias/LayerNorm 常不衰减 |
 | 调度 | warmup + cosine | warmup 步数占总步数 1%～10% |
 
 **面试表述**：说明你如何 **先小模型过拟合** 再放大；如何看 **train/val loss** 与 **梯度范数**。
@@ -335,7 +335,7 @@ uv run pytest tests/test_model.py -v
 
 | 观察项 | 粗参考 |
 |--------|--------|
-| 随机初始化、未训练 | loss 常接近 $\ln V$（自然对数） |
+| 随机初始化、未训练 | loss 常接近 $`\ln V`$（自然对数） |
 | Toy 过拟合 | 数十～数百步内 loss 明显下降 |
 | 小语料真实训练 | 验证 loss 可能波动；需调 LR 与正则 |
 | 生成质量 | 极小模型以「连贯子串、复述训练片段」为目标即可 |
@@ -353,7 +353,7 @@ STAR 是 **Situation（情境）— Task（任务）— Action（行动）— Re
 - **S**：在 CS336 课程中，需要在不依赖 PyTorch 自带 AdamW 的前提下，从零实现 BPE、因果 Transformer LM、优化器与训练管线，并通过官方单元测试。
 - **T**：交付可训练、可复现的最小语言模型，并能在 toy 数据上过拟合验证实现正确性。
 - **A**：按模块拆分 tokenizer/model/optim；先单测后集成；对 RoPE 与因果 mask 做形状与对拍检查；使用 warmup+cosine 与学习率分组；用 top-p 做生成调试。
-- **R**：`pytest` 全部通过；toy 训练 loss 从约 $\ln V$ 降至明显更低；能清晰向面试官画出数据流与公式。
+- **R**：`pytest` 全部通过；toy 训练 loss 从约 $`\ln V`$ 降至明显更低；能清晰向面试官画出数据流与公式。
 
 ---
 
@@ -414,7 +414,7 @@ text = tokenizer.decode(ids[0].tolist())
 
 1. **数据流**：能口述从字符串到 logits 的每一步形状变化。
 2. **因果性**：causal mask 与自回归训练目标一致；推理时无标签，靠采样扩展序列。
-3. **BPE 与模型**：tokenizer 只影响离散 ID；嵌入矩阵行数等于 $V$；特殊 token ID 固定且文档化。
+3. **BPE 与模型**：tokenizer 只影响离散 ID；嵌入矩阵行数等于 $`V`$；特殊 token ID 固定且文档化。
 4. **优化**：AdamW 解耦衰减；调度为何需要 warmup；何时梯度裁剪。
 5. **对比框架**：你实现的是「教学最小闭环」；HuggingFace 提供工程化、算子融合、分布式与生态；各有利弊见下文高频题详解。
 
@@ -424,7 +424,7 @@ text = tokenizer.decode(ids[0].tolist())
 
 ### Q1：请描述你从零实现语言模型的过程
 
-**参考答案**：我按数据流把任务拆成四块：**分词器、模型、损失与优化、训练与生成**。首先实现 **字节级 BPE**：用课程规定的预分词正则把文本切成片段，在片段内统计相邻字节对，迭代 merge 扩展词表，并严格处理 **平局规则**，保证训练与推理同一套 merge 顺序；`encode` 得到 ID 序列，`decode` 查词表拼回字节再 UTF-8 解码。接着实现 **Decoder-only Transformer**：token embedding、多层 block，每层包含 **RMSNorm**、**多头因果自注意力**（对 $Q,K$ 施加 **RoPE**）、残差与 **SwiGLU FFN**；注意力里用 **causal mask** 禁止看未来位置；最后 **lm_head** 映射到词表 logits。训练时对 logits 与 **右移一位** 的 `input_ids` 做 **交叉熵**。优化器使用 **手写的 AdamW**（含偏差修正与解耦权重衰减），训练循环里配合 **学习率调度**（如 warmup+cosine），并记录 loss。验证无误后用 **top-p** 做文本生成调试。整个过程以 **`pytest`** 与 toy 过拟合实验锁定正确性。
+**参考答案**：我按数据流把任务拆成四块：**分词器、模型、损失与优化、训练与生成**。首先实现 **字节级 BPE**：用课程规定的预分词正则把文本切成片段，在片段内统计相邻字节对，迭代 merge 扩展词表，并严格处理 **平局规则**，保证训练与推理同一套 merge 顺序；`encode` 得到 ID 序列，`decode` 查词表拼回字节再 UTF-8 解码。接着实现 **Decoder-only Transformer**：token embedding、多层 block，每层包含 **RMSNorm**、**多头因果自注意力**（对 $`Q,K`$ 施加 **RoPE**）、残差与 **SwiGLU FFN**；注意力里用 **causal mask** 禁止看未来位置；最后 **lm_head** 映射到词表 logits。训练时对 logits 与 **右移一位** 的 `input_ids` 做 **交叉熵**。优化器使用 **手写的 AdamW**（含偏差修正与解耦权重衰减），训练循环里配合 **学习率调度**（如 warmup+cosine），并记录 loss。验证无误后用 **top-p** 做文本生成调试。整个过程以 **`pytest`** 与 toy 过拟合实验锁定正确性。
 
 ### Q2：实现过程中遇到的最大挑战是什么？
 
@@ -432,23 +432,23 @@ text = tokenizer.decode(ids[0].tolist())
 
 ### Q3：如何验证每个组件的正确性？
 
-**参考答案**：**Tokenizer**：小语料训练、与官方样例 encode/decode 一致；边界字符串与特殊 token。**注意力与 RoPE**：形状检查、因果性测试（未来 token 不应影响当前输出）、与已知实现对比。**损失**：手算微型样例（$B=1,T=2$）核对 CE。**AdamW**：单步更新可解析的简单二次函数或对照 `torch.optim.AdamW`（若允许）。**端到端**：单 batch 过拟合、全量 `pytest`、观察 loss 是否从约 $\ln V$ 下降。
+**参考答案**：**Tokenizer**：小语料训练、与官方样例 encode/decode 一致；边界字符串与特殊 token。**注意力与 RoPE**：形状检查、因果性测试（未来 token 不应影响当前输出）、与已知实现对比。**损失**：手算微型样例（$`B=1,T=2`$）核对 CE。**AdamW**：单步更新可解析的简单二次函数或对照 `torch.optim.AdamW`（若允许）。**端到端**：单 batch 过拟合、全量 `pytest`、观察 loss 是否从约 $`\ln V`$ 下降。
 
 ### Q4：你的模型有多少参数？训练了多少数据？
 
-**参考答案**：这是开放性问题，请填真实数字。示例：**参数量**可按 $\approx 2 V D$（嵌入+输出头，若未 tying）+ Transformer 主体（每层 attention/FFN）估算；口头可说明「约 **X M** 参数」。**数据量**说明语料来源（如 toy 复制语料 / 小型维基子集 / 课程提供 shard）、**大致 token 数或文档数**，以及训练 **步数与总 token 数（tokens = batch × T × steps）**。面试官关注的是你是否清楚 **规模量级** 与 **实验可复现**，而非背诵精确个位数。
+**参考答案**：这是开放性问题，请填真实数字。示例：**参数量**可按 $`\approx 2 V D`$（嵌入+输出头，若未 tying）+ Transformer 主体（每层 attention/FFN）估算；口头可说明「约 **X M** 参数」。**数据量**说明语料来源（如 toy 复制语料 / 小型维基子集 / 课程提供 shard）、**大致 token 数或文档数**，以及训练 **步数与总 token 数（tokens = batch × T × steps）**。面试官关注的是你是否清楚 **规模量级** 与 **实验可复现**，而非背诵精确个位数。
 
 ### Q5：训练过程中的 loss 曲线是怎样的？
 
-**参考答案**：**健康情况**：经过 warmup 后，train loss **整体下行**，可能有噪声；若划分验证集，val loss 先降后可能略升（轻微过拟合）。**异常**：全程平坦在 $\ln V$ 附近 → 可能未学习（LR 太小、标签错、mask 错）；突然变 NaN → LR 过大、数值问题或未裁剪梯度。**我如何描述**：我会准备一张真实截图或口述「前 N 步从 A 降到 B」，并提到曾用 **梯度范数** 与 **学习率** 辅助判断。
+**参考答案**：**健康情况**：经过 warmup 后，train loss **整体下行**，可能有噪声；若划分验证集，val loss 先降后可能略升（轻微过拟合）。**异常**：全程平坦在 $`\ln V`$ 附近 → 可能未学习（LR 太小、标签错、mask 错）；突然变 NaN → LR 过大、数值问题或未裁剪梯度。**我如何描述**：我会准备一张真实截图或口述「前 N 步从 A 降到 B」，并提到曾用 **梯度范数** 与 **学习率** 辅助判断。
 
 ### Q6：你如何调优超参数？
 
-**参考答案**：我先保证 **正确性**，再调参。顺序上：**(1)** 固定小模型与小数据，确认能过拟合；**(2)** 调 **学习率** 与 **warmup**（常用网格或二分）；**(3)** 调 **weight decay**、**dropout**（若实现）；**(4)** 再增大 $D,L,T$ 或数据。**batch 与序列长度**受显存约束，必要时 **梯度累积**。记录每次实验的 `lr, wd, batch, T, steps` 与曲线，避免「凭感觉改多处」。
+**参考答案**：我先保证 **正确性**，再调参。顺序上：**(1)** 固定小模型与小数据，确认能过拟合；**(2)** 调 **学习率** 与 **warmup**（常用网格或二分）；**(3)** 调 **weight decay**、**dropout**（若实现）；**(4)** 再增大 $`D,L,T`$ 或数据。**batch 与序列长度**受显存约束，必要时 **梯度累积**。记录每次实验的 `lr, wd, batch, T, steps` 与曲线，避免「凭感觉改多处」。
 
 ### Q7：BPE 分词器和 Transformer 模型如何连接？
 
-**参考答案**：连接点是 **离散 token ID**。BPE 输出 `List[int]`，每个整数在 $[0, V-1]$（或作业规定范围）；模型中的 **`nn.Embedding(V, D)`** 把这些 ID 映射为向量。模型 **不** 直接处理字符串。特殊 token（如 EOS）在 encode 时插入，词表大小需与嵌入与 **lm_head** 输出维一致。训练数据管道负责 batching 与 padding，并在 labels 里标记忽略位置。
+**参考答案**：连接点是 **离散 token ID**。BPE 输出 `List[int]`，每个整数在 $`[0, V-1]`$（或作业规定范围）；模型中的 **`nn.Embedding(V, D)`** 把这些 ID 映射为向量。模型 **不** 直接处理字符串。特殊 token（如 EOS）在 encode 时插入，词表大小需与嵌入与 **lm_head** 输出维一致。训练数据管道负责 batching 与 padding，并在 labels 里标记忽略位置。
 
 ### Q8：你的实现和 HuggingFace Transformers 有什么区别？
 
@@ -464,7 +464,7 @@ text = tokenizer.decode(ids[0].tolist())
 
 ### Q11：请解释 Top-p 采样与 greedy 的差异
 
-**参考答案**：**Greedy** 每步取 argmax，容易重复、缺乏多样性。**Top-p（nucleus）** 只在累积概率达到 $p$ 的最小集合内采样，兼顾质量与多样性；常配合 **temperature** 缩放 logits。训练仍用真实标签的 CE；采样只影响 **推理**。
+**参考答案**：**Greedy** 每步取 argmax，容易重复、缺乏多样性。**Top-p（nucleus）** 只在累积概率达到 $`p`$ 的最小集合内采样，兼顾质量与多样性；常配合 **temperature** 缩放 logits。训练仍用真实标签的 CE；采样只影响 **推理**。
 
 ### Q12：手写 AdamW 最容易漏掉什么？
 
@@ -475,7 +475,7 @@ text = tokenizer.decode(ids[0].tolist())
 ## 十五、练习建议（自测清单）
 
 1. **白板**：画出 `(B,T)` 从 embedding 到 logits 的形状变化，并标出 causal mask 作用位置。
-2. **手算**：$T=3$、$V=5$ 的假 logits，写出一个 batch 的 CE 计算。
+2. **手算**：$`T=3`$、$`V=5`$ 的假 logits，写出一个 batch 的 CE 计算。
 3. **代码**：实现 `top_p_filter` 纯 NumPy/torch 小函数，对随机 logits 跑通。
 4. **排查**：故意关掉 causal mask，观察 loss 是否「好得不正常」。
 5. **口语**：用 90 秒英文版 walkthrough，录音自我纠正。
