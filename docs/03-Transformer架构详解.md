@@ -20,10 +20,10 @@
 ### 1.2 学完本课你应该能回答
 
 - 「Attention Is All You Need」相对 RNN 的核心主张是什么？
-- Self-Attention 中 Q、K、V 如何一步步算出输出？为什么要除以 $\sqrt{d_k}$？
+- Self-Attention 中 Q、K、V 如何一步步算出输出？为什么要除以 $`\sqrt{d_k}`$？
 - 多头注意力与 FFN 分工是什么？Pre-Norm 与残差如何配合？
 - 因果掩码如何实现？与自回归训练、推理的关系？
-- 如何估算 $L$ 层、维度 $d$、词表 $V$ 下的参数量级？
+- 如何估算 $`L`$ 层、维度 $`d`$、词表 $`V`$ 下的参数量级？
 
 ### 1.3 预备知识
 
@@ -47,7 +47,7 @@ BPE 分词 ──→ 【本课：Transformer 块级架构】──→ 多头细�
 
 **序列建模的早期范式**
 
-- **RNN**：第 $t$ 步隐藏状态 $h_t$ 依赖 $h_{t-1}$ 与当前输入 $x_t$，形成**时间上的递归**。信息沿时间步传递，**长距离依赖**需经过很多步，易出现**梯度消失/爆炸**。
+- **RNN**：第 $`t`$ 步隐藏状态 $`h_t`$ 依赖 $`h_{t-1}`$ 与当前输入 $`x_t`$，形成**时间上的递归**。信息沿时间步传递，**长距离依赖**需经过很多步，易出现**梯度消失/爆炸**。
 - **LSTM/GRU**：通过门控与记忆单元**缓解**长依赖与梯度问题，但本质仍是**逐步计算**，**时间步之间难以完全并行**（训练时虽有 Truncated BPTT 等技巧，但并行度仍受限）。
 
 **CNN 作为序列模型的补充**
@@ -177,34 +177,34 @@ Vaswani 等人在 **「Attention Is All You Need」**（NeurIPS 2017）中提出
 
 #### （1）Input Embedding 与位置信息
 
-- **Token Embedding**：查表矩阵 $E \in \mathbb{R}^{V \times d}$，第 $i$ 个 token 得到 $d$ 维向量。输出形状 `[B, n, d]`。
+- **Token Embedding**：查表矩阵 $`E \in \mathbb{R}^{V \times d}`$，第 $`i`$ 个 token 得到 $`d`$ 维向量。输出形状 `[B, n, d]`。
 - **为何需要位置编码**：Self-Attention 若只看内容向量，对位置**置换**缺乏区分能力（排列 token 顺序会得到相同的注意力结构）。必须注入**位置信息**（绝对正弦、可学习位置、**RoPE** 等，RoPE 在 Lesson 04 展开）。
-- **常见做法**：$X = \text{TokEmb} + \text{PosEmb}$（或 RoPE 作用于 Q/K）。
+- **常见做法**：$`X = \text{TokEmb} + \text{PosEmb}`$（或 RoPE 作用于 Q/K）。
 
 #### （2）Self-Attention 逐步推导（Q、K、V）
 
-对单头、忽略 batch，隐藏维度为 $d$，每头维度 $d_k = d / H$（$H$ 为头数）。
+对单头、忽略 batch，隐藏维度为 $`d`$，每头维度 $`d_k = d / H`$（$`H`$ 为头数）。
 
-1. **线性投影**：对输入 $X \in \mathbb{R}^{n \times d}$，  
-   $Q = X W_Q,\quad K = X W_K,\quad V = X W_V$，  
-   其中 $W_Q, W_K, W_V \in \mathbb{R}^{d \times d}$（多头时通常先投影到 $d$ 再拆头）。
-2. **注意力分数**：$ \text{Scores} = Q K^\top \in \mathbb{R}^{n \times n}$，第 $i$ 行表示位置 $i$ 对每个位置 $j$ 的相似度。
-3. **缩放**：$ \text{Scores}' = \text{Scores} / \sqrt{d_k} $。
-4. **掩码（Decoder）**：对**不允许 attend** 的位置（未来位置）将分数置为 $-\infty$，Softmax 后概率为 0。
-5. **Softmax（按行）**：$A = \text{softmax}(\text{Scores}', \text{dim}=\text{last})$，$A \in \mathbb{R}^{n \times n}$。
-6. **聚合**：输出 $O = A V \in \mathbb{R}^{n \times d}$。
-7. **输出投影**：$O' = O W_O$，$W_O \in \mathbb{R}^{d \times d}$。
+1. **线性投影**：对输入 $`X \in \mathbb{R}^{n \times d}`$，  
+   $`Q = X W_Q,\quad K = X W_K,\quad V = X W_V`$，  
+   其中 $`W_Q, W_K, W_V \in \mathbb{R}^{d \times d}`$（多头时通常先投影到 $`d`$ 再拆头）。
+2. **注意力分数**：$`\text{Scores} = Q K^\top \in \mathbb{R}^{n \times n}`$，第 $`i`$ 行表示位置 $`i`$ 对每个位置 $`j`$ 的相似度。
+3. **缩放**：$`\text{Scores}' = \text{Scores} / \sqrt{d_k}`$。
+4. **掩码（Decoder）**：对**不允许 attend** 的位置（未来位置）将分数置为 $`-\infty`$，Softmax 后概率为 0。
+5. **Softmax（按行）**：$`A = \text{softmax}(\text{Scores}', \text{dim}=\text{last})`$，$`A \in \mathbb{R}^{n \times n}`$。
+6. **聚合**：输出 $`O = A V \in \mathbb{R}^{n \times d}`$。
+7. **输出投影**：$`O' = O W_O`$，$`W_O \in \mathbb{R}^{d \times d}`$。
 
 **直觉**：每个位置用**查询 Q** 去和**键 K** 匹配，得到权重，再对**值 V** 加权求和——即「按内容相关性」从全序列收集信息。
 
-#### （3）为什么要除以 $\sqrt{d_k}$？与 Softmax 饱和
+#### （3）为什么要除以 $`\sqrt{d_k}`$？与 Softmax 饱和
 
-- **方差稳定**：若 $q, k$ 各分量近似零均值、有限方差，则点积 $q^\top k$ 的方差随 $d_k$ **线性增长**。除以 $\sqrt{d_k}$ 使点积尺度**不随维度爆炸**，Softmax 不会过早进入**极端饱和区**。
+- **方差稳定**：若 $`q, k`$ 各分量近似零均值、有限方差，则点积 $`q^\top k`$ 的方差随 $`d_k`$ **线性增长**。除以 $`\sqrt{d_k}`$ 使点积尺度**不随维度爆炸**，Softmax 不会过早进入**极端饱和区**。
 - **与梯度的关系**：Softmax 在输入**极大或极小**时梯度接近 0（饱和），不利于学习；缩放使 logits 保持在更温和的范围，**优化更稳定**。面试中可表述为：**避免点积过大导致 Softmax 几乎 one-hot、梯度消失**（与「梯度稳定」同一方向）。
 
 #### （4）Multi-Head Attention
 
-将 $d$ 拆成 $H$ 个头，每头独立一组 $Q_h, K_h, V_h$（维度 $d_k = d/H$），并行计算 $H$ 个注意力，再 **concat** 并经 $W_O$ 融合。
+将 $`d`$ 拆成 $`H`$ 个头，每头独立一组 $`Q_h, K_h, V_h`$（维度 $`d_k = d/H`$），并行计算 $`H`$ 个注意力，再 **concat** 并经 $`W_O`$ 融合。
 
 **直觉**：多头 = **多个子空间**上并行做「谁该看谁」，有的头偏句法、有的头偏共指等（具体模式由训练涌现）。
 
@@ -216,18 +216,18 @@ $$
 \text{FFN}(x) = W_2\,\sigma(W_1 x + b_1) + b_2
 $$
 
-中间维度 $d_{\text{ff}}$ 常取 **$4d$**。$\sigma$ 常用 GELU/ReLU。
+中间维度 $`d_{\text{ff}}`$ 常取 **$`4d`$**。$`\sigma`$ 常用 GELU/ReLU。
 
 **分工**：Attention **混合位置间信息**；FFN **在每个位置做强非线性变换**，常被视为**容量与记忆**的重要部分（教学类比，非严格证明）。
 
 #### （6）残差连接与 Layer Normalization
 
-- **残差**：$x_{\text{out}} = x + \text{Sublayer}(x)$（Pre-Norm 时子层输入先 LN）。提供近似**恒等路径**，利于梯度回传与**深层堆叠**。
+- **残差**：$`x_{\text{out}} = x + \text{Sublayer}(x)`$（Pre-Norm 时子层输入先 LN）。提供近似**恒等路径**，利于梯度回传与**深层堆叠**。
 - **LayerNorm**：在**特征维**上归一化（Transformer 序列任务中通常对每个 token 向量归一），稳定激活分布。
 
 #### （7）输出投影与 Softmax
 
-最后一层隐藏状态 $h \in \mathbb{R}^d$ 经 **LM Head** $W_{\text{lm}} \in \mathbb{R}^{V \times d}$ 得 logits，再 Softmax 得词表上的概率分布。训练时常对**下一 token** 位置做交叉熵。
+最后一层隐藏状态 $`h \in \mathbb{R}^d`$ 经 **LM Head** $`W_{\text{lm}} \in \mathbb{R}^{V \times d}`$ 得 logits，再 Softmax 得词表上的概率分布。训练时常对**下一 token** 位置做交叉熵。
 
 ---
 
@@ -235,12 +235,12 @@ $$
 
 **因果掩码（Causal / Lower-Triangular Mask）**
 
-- 位置 $i$ 只能 attend $j \le i$。在 $n \times n$ 注意力矩阵中，**禁止** $j > i$ 的位置。
-- 实现：将 **上三角（不含对角）** 的 logits 置为 $-\infty$，Softmax 后这些位置权重为 0。
+- 位置 $`i`$ 只能 attend $`j \le i`$。在 $`n \times n`$ 注意力矩阵中，**禁止** $`j > i`$ 的位置。
+- 实现：将 **上三角（不含对角）** 的 logits 置为 $`-\infty`$，Softmax 后这些位置权重为 0。
 
 **自回归生成（Autoregressive）**
 
-- 生成第 $t+1$ 个 token 时，仅依赖已生成的 $1\ldots t$。训练时**并行 teacher forcing** 在同一前向中计算所有位置，但每个位置的标签仍是「预测下一个 token」，与推理一致。
+- 生成第 $`t+1`$ 个 token 时，仅依赖已生成的 $`1\ldots t`$。训练时**并行 teacher forcing** 在同一前向中计算所有位置，但每个位置的标签仍是「预测下一个 token」，与推理一致。
 
 ---
 
@@ -260,7 +260,7 @@ $$
 
 ### 2.7 模型参数量估算公式
 
-**记号**：$V$ 词表，$d$ 模型宽度，$L$ 层数，$d_{\text{ff}}$ FFN 中间维，注意力头数影响 $d_k$ 但不改变 $d\times d$ 投影的主项阶（标准 MHA 下）。
+**记号**：$`V`$ 词表，$`d`$ 模型宽度，$`L`$ 层数，$`d_{\text{ff}}`$ FFN 中间维，注意力头数影响 $`d_k`$ 但不改变 $`d\times d`$ 投影的主项阶（标准 MHA 下）。
 
 **Embedding**
 
@@ -268,21 +268,21 @@ $$
 P_{\text{emb}} \approx V \cdot d
 $$
 
-（若与 output **权重共享 weight tying**，则不计第二次 $Vd$。）
+（若与 output **权重共享 weight tying**，则不计第二次 $`Vd`$。）
 
-**每层 Self-Attention（四个 $d\times d$ 投影 $W_Q, W_K, W_V, W_O$）**
+**每层 Self-Attention（四个 $`d\times d`$ 投影 $`W_Q, W_K, W_V, W_O`$）**
 
 $$
 P_{\text{attn}} \approx 4 d^2
 $$
 
-**每层标准 FFN（两层：$d \to d_{\text{ff}} \to d$）**
+**每层标准 FFN（两层：$`d \to d_{\text{ff}} \to d`$）**
 
 $$
 P_{\text{ffn}} \approx 2 \cdot d \cdot d_{\text{ff}}
 $$
 
-当 $d_{\text{ff}} = 4d$ 时，$P_{\text{ffn}} \approx 8d^2$。
+当 $`d_{\text{ff}} = 4d`$ 时，$`P_{\text{ffn}} \approx 8d^2`$。
 
 **每层合计（标准假设）**
 
@@ -290,7 +290,7 @@ $$
 P_{\text{layer}} \approx 4d^2 + 2 d d_{\text{ff}} \approx 12 d^2 \quad (\text{当 } d_{\text{ff}}=4d)
 $$
 
-**$L$ 层 Transformer Block**
+**$`L`$ 层 Transformer Block**
 
 $$
 P_{\text{blocks}} \approx L \cdot (4d^2 + 2 d d_{\text{ff}})
@@ -304,30 +304,30 @@ $$
 
 **SwiGLU FFN（LLaMA 等常用）**
 
-SwiGLU 可看作门控：中间有三个投影（up、gate、down），维度常取 **$\frac{2}{3} \cdot 4d$** 等以保持 FLOPs 近似。参数量常按三矩阵估算，例如中间宽 $d_{\text{ff}}$ 时：
+SwiGLU 可看作门控：中间有三个投影（up、gate、down），维度常取 **$`\frac{2}{3} \cdot 4d`$** 等以保持 FLOPs 近似。参数量常按三矩阵估算，例如中间宽 $`d_{\text{ff}}`$ 时：
 
 $$
 P_{\text{ffn}}^{\text{SwiGLU}} \approx 3 \cdot d \cdot d_{\text{ff}}
 $$
 
-若目标总 FLOPs 与「$d_{\text{ff}}=4d$ 的两层 MLP」对齐，常取 $d_{\text{ff}} = \frac{2}{3} \cdot 4d$，则：
+若目标总 FLOPs 与「$`d_{\text{ff}}=4d`$ 的两层 MLP」对齐，常取 $`d_{\text{ff}} = \frac{2}{3} \cdot 4d`$，则：
 
 $$
 P_{\text{ffn}}^{\text{SwiGLU}} \approx 3 d \cdot \frac{8}{3}d = 8d^2
 $$
 
-与标准 $8d^2$ **同量级**（具体系数依实现与是否含 bias 略有出入）。面试说明**假设**即可。
+与标准 $`8d^2`$ **同量级**（具体系数依实现与是否含 bias 略有出入）。面试说明**假设**即可。
 
-**另一种常见记法（与「把 hidden 设为 $\frac{2}{3} \times 4d$ 以保持算力」对齐）**
+**另一种常见记法（与「把 hidden 设为 $`\frac{2}{3} \times 4d`$ 以保持算力」对齐）**
 
-若将「标准 FFN 的中间维」记为 $4d$，SwiGLU 为保持前向 FLOPs 近似不变，常取 **中间瓶颈维** $d_{\text{ff}}^{\text{SwiGLU}} = \frac{2}{3} \times 4d$，则三个矩阵 $d \times d_{\text{ff}}^{\text{SwiGLU}}$ 的参数量可记为：
+若将「标准 FFN 的中间维」记为 $`4d`$，SwiGLU 为保持前向 FLOPs 近似不变，常取 **中间瓶颈维** $`d_{\text{ff}}^{\text{SwiGLU}} = \frac{2}{3} \times 4d`$，则三个矩阵 $`d \times d_{\text{ff}}^{\text{SwiGLU}}`$ 的参数量可记为：
 
 $$
 P_{\text{ffn}}^{\text{SwiGLU}} \approx 3 \cdot d \cdot d_{\text{ff}}^{\text{SwiGLU}}
 = 3 \cdot d \cdot \frac{2}{3} \cdot 4d = 8d^2
 $$
 
-即与「两层标准 FFN、$d_{\text{ff}}=4d$」在 **$8d^2$** 上**同阶**。面试时写清「**三矩阵 × 中间维**」比死记系数更重要。
+即与「两层标准 FFN、$`d_{\text{ff}}=4d`$」在 **$`8d^2`$** 上**同阶**。面试时写清「**三矩阵 × 中间维**」比死记系数更重要。
 
 ---
 
@@ -443,7 +443,7 @@ class TinyDecoderLM(nn.Module):
         return self.lm_head(x)
 ```
 
-**自查清单**：因果掩码是否作用在 **scores** 上？残差是否在 Attention 与 FFN **各一次**？$\sqrt{d_k}$ 是否用 **每头维度** 而非 $d_{\text{model}}$？
+**自查清单**：因果掩码是否作用在 **scores** 上？残差是否在 Attention 与 FFN **各一次**？$`\sqrt{d_k}`$ 是否用 **每头维度** 而非 $`d_{\text{model}}`$？
 
 ---
 
@@ -457,18 +457,18 @@ class TinyDecoderLM(nn.Module):
 
 ### 4.2 Self-Attention 的计算复杂度是多少？
 
-**答**：对序列长度 $n$、模型维度 $d$（单头维度 $d_k = d/H$）：
+**答**：对序列长度 $`n`$、模型维度 $`d`$（单头维度 $`d_k = d/H`$）：
 
-- 计算 $Q, K, V$ 与输出投影：**$O(n d^2)$**（主导项为矩阵乘）。
-- 注意力矩阵 $QK^\top$ 与加权：**$O(n^2 d_k) = O(n^2 d)$**（$H$ 个头总复杂度同级）。
+- 计算 $`Q, K, V`$ 与输出投影：**$`O(n d^2)`$**（主导项为矩阵乘）。
+- 注意力矩阵 $`QK^\top`$ 与加权：**$`O(n^2 d_k) = O(n^2 d)`$**（$`H`$ 个头总复杂度同级）。
 
-**总**：**$O(n^2 d + n d^2)$**。当 $n$ 很大时，**$n^2 d$** 项常主导时间与显存，因此有 FlashAttention、序列并行等。**与 RNN 每步 $O(d^2)$、总长 $O(n d^2)$** 相比，Attention 在长序列上**平方项**是主要瓶颈。
+**总**：**$`O(n^2 d + n d^2)`$**。当 $`n`$ 很大时，**$`n^2 d`$** 项常主导时间与显存，因此有 FlashAttention、序列并行等。**与 RNN 每步 $`O(d^2)`$、总长 $`O(n d^2)`$** 相比，Attention 在长序列上**平方项**是主要瓶颈。
 
 ---
 
-### 4.3 为什么要除以 $\sqrt{d_k}$？
+### 4.3 为什么要除以 $`\sqrt{d_k}`$？
 
-**答**：点积 $q^\top k$ 若各维独立零均值、方差 1，则方差约为 $d_k$，随维度增大 logits **尺度变大**，Softmax 趋近 one-hot，**梯度饱和**。除以 $\sqrt{d_k}$ 使点积方差**与 $d_k$ 无关**，Softmax 更平滑、**训练稳定**。面试可补充：这是**缩放**而非任意常数，与维度匹配。
+**答**：点积 $`q^\top k`$ 若各维独立零均值、方差 1，则方差约为 $`d_k`$，随维度增大 logits **尺度变大**，Softmax 趋近 one-hot，**梯度饱和**。除以 $`\sqrt{d_k}`$ 使点积方差**与 $`d_k`$ 无关**，Softmax 更平滑、**训练稳定**。面试可补充：这是**缩放**而非任意常数，与维度匹配。
 
 ---
 
@@ -484,7 +484,7 @@ class TinyDecoderLM(nn.Module):
 
 ### 4.5 残差连接的作用是什么？
 
-**答**：提供 **$x \mapsto x$** 的近似恒等通路，使梯度更易回传，**缓解深层网络梯度消失/退化**，让 **几十层** 堆叠可训练；与 **LayerNorm**、合适初始化与学习率共同构成稳定训练的基础。
+**答**：提供 **$`x \mapsto x`$** 的近似恒等通路，使梯度更易回传，**缓解深层网络梯度消失/退化**，让 **几十层** 堆叠可训练；与 **LayerNorm**、合适初始化与学习率共同构成稳定训练的基础。
 
 ---
 
@@ -501,19 +501,19 @@ class TinyDecoderLM(nn.Module):
 
 **答**：分项估算后求和：
 
-1. **Embedding**：约 $Vd$（是否 **weight tying** 决定是否再加 $Vd$）。
-2. **每层 Attention**：四个 $d \times d$ 矩阵，约 **$4d^2$**。
-3. **每层 FFN**：约 **$2 d d_{\text{ff}}$**；若 $d_{\text{ff}}=4d$，约 **$8d^2$**。
-4. **SwiGLU**：约 **$3 d d_{\text{ff}}$**，按 $d_{\text{ff}}$ 取值与标准 FFN 对齐 FLOPs 时常与 **$8d^2$** 同量级。
-5. **LayerNorm、bias** 相对 $d^2$ 常可忽略（除非问细节）。
+1. **Embedding**：约 $`Vd`$（是否 **weight tying** 决定是否再加 $`Vd`$）。
+2. **每层 Attention**：四个 $`d \times d`$ 矩阵，约 **$`4d^2`$**。
+3. **每层 FFN**：约 **$`2 d d_{\text{ff}}`$**；若 $`d_{\text{ff}}=4d`$，约 **$`8d^2`$**。
+4. **SwiGLU**：约 **$`3 d d_{\text{ff}}`$**，按 $`d_{\text{ff}}`$ 取值与标准 FFN 对齐 FLOPs 时常与 **$`8d^2`$** 同量级。
+5. **LayerNorm、bias** 相对 $`d^2`$ 常可忽略（除非问细节）。
 
-**主项**：$P \approx Vd + L(4d^2 + 2dd_{\text{ff}})$（在明确假设下）。
+**主项**：$`P \approx Vd + L(4d^2 + 2dd_{\text{ff}})`$（在明确假设下）。
 
 ---
 
 ### 4.8 因果掩码（causal mask）是如何实现的？
 
-**答**：对长度 $n$，构造 **$n \times n$** 掩码：**位置 $i$ 仅允许 $j \le i$**。在 **Softmax 之前**，将 **$j > i$** 的 logits 设为 **$-\infty$**，Softmax 后这些位置概率为 0。实现上常用 **`torch.triu(..., diagonal=1)`** 得到上三角 True，再 `masked_fill`。广播到 **batch 与 head** 维。
+**答**：对长度 $`n`$，构造 **$`n \times n`$** 掩码：**位置 $`i`$ 仅允许 $`j \le i`$**。在 **Softmax 之前**，将 **$`j > i`$** 的 logits 设为 **$`-\infty`$**，Softmax 后这些位置概率为 0。实现上常用 **`torch.triu(..., diagonal=1)`** 得到上三角 True，再 `masked_fill`。广播到 **batch 与 head** 维。
 
 ---
 
@@ -543,22 +543,22 @@ class TinyDecoderLM(nn.Module):
 
 ### 4.12 多头注意力（Multi-Head）解决什么问题？
 
-**答**：单头注意力在**一个**子空间里学习「谁看谁」，表达能力有限。**多头**将 $d$ 拆成 $H$ 份，在 **$H$ 个并行子空间**里各自学习不同的相关模式（如句法、共指、局部短语），再经 $W_O$ **融合**。效果上类似**多视角投票**，降低单头需同时拟合多种关系的压力，是 Transformer **表达力**的关键之一。
+**答**：单头注意力在**一个**子空间里学习「谁看谁」，表达能力有限。**多头**将 $`d`$ 拆成 $`H`$ 份，在 **$`H`$ 个并行子空间**里各自学习不同的相关模式（如句法、共指、局部短语），再经 $`W_O`$ **融合**。效果上类似**多视角投票**，降低单头需同时拟合多种关系的压力，是 Transformer **表达力**的关键之一。
 
 ---
 
 ## 5. 练习题
 
-1. **手推形状**：设 $B=2, n=128, d=768, H=12$，写出 $Q,K,V$ 在拆头前后的形状，以及 $A = \text{softmax}(QK^\top/\sqrt{d_k})$ 的形状。
-2. **掩码**：$n=4$ 时，列出位置 $i=2$ 在因果注意力中可见的 $j$ 集合。
-3. **参数量**：$d=4096, L=32, d_{\text{ff}}=16384, V=32000$，在 **embedding 与 lm_head 共享** 时，估算 **$12Ld^2$ 量级** 与 **$Vd$** 谁更大？
-4. **复杂度**：解释为何上下文从 $2K$ 增到 $32K$ 时，**注意力**部分近似按 **$n^2$** 放大。
+1. **手推形状**：设 $`B=2, n=128, d=768, H=12`$，写出 $`Q,K,V`$ 在拆头前后的形状，以及 $`A = \text{softmax}(QK^\top/\sqrt{d_k})`$ 的形状。
+2. **掩码**：$`n=4`$ 时，列出位置 $`i=2`$ 在因果注意力中可见的 $`j`$ 集合。
+3. **参数量**：$`d=4096, L=32, d_{\text{ff}}=16384, V=32000`$，在 **embedding 与 lm_head 共享** 时，估算 **$`12Ld^2`$ 量级** 与 **$`Vd`$** 谁更大？
+4. **复杂度**：解释为何上下文从 $`2K`$ 增到 $`32K`$ 时，**注意力**部分近似按 **$`n^2`$** 放大。
 5. **架构选择**：各举一个「更适合 T5 而非纯 GPT」与「更适合 BERT 而非 GPT」的任务。
 6. **对比**：用不超过五句话说明 LLaMA 相对「原版 GPT-2 风格」在常见实现上的两点差异（提示：RoPE、Norm、FFN）。
-7. **缩放因子**：若错误地使用 $\sqrt{d}$（模型宽度）而非 $\sqrt{d_k}$（每头维度）做缩放，当 $H>1$ 时会对训练产生什么影响？
+7. **缩放因子**：若错误地使用 $`\sqrt{d}`$（模型宽度）而非 $`\sqrt{d_k}`$（每头维度）做缩放，当 $`H>1`$ 时会对训练产生什么影响？
 8. **Post-Norm 与 Pre-Norm**：各用一句话写出 Post-Norm 与 Pre-Norm 下「Attention 子层 + 残差 + LayerNorm」的典型顺序差异。
 9. **Cross-Attention**：在 T5 中，Cross-Attention 的 Q、K、V 分别来自哪里？若 K/V 维与 Decoder 隐状态维不一致，通常如何处理？
-10. **权重绑定**：什么是 input embedding 与 LM head 的 weight tying？它如何改变参数量估算中的 $Vd$ 项？
+10. **权重绑定**：什么是 input embedding 与 LM head 的 weight tying？它如何改变参数量估算中的 $`Vd`$ 项？
 
 **提示**：题 3 需代入数量级比较；题 6 可查阅 Lesson 05 的 RMSNorm/SwiGLU；题 7 答「缩放过强/过弱导致 softmax 与梯度行为异常」；题 9 答「Q 来自 Decoder，K/V 来自 Encoder；投影矩阵对齐维度」。
 
@@ -578,11 +578,11 @@ class TinyDecoderLM(nn.Module):
 
 | 概念 | 一句话 |
 |------|--------|
-| 缩放点积注意力 | $ \text{softmax}(QK^\top/\sqrt{d_k})V $ |
-| 因果掩码 | $j > i$ 处 logits 为 $-\infty$ |
+| 缩放点积注意力 | $`\text{softmax}(QK^\top/\sqrt{d_k})V`$ |
+| 因果掩码 | $`j > i`$ 处 logits 为 $`-\infty`$ |
 | 残差 | 恒等路径，利于深层优化 |
-| 参数量主项（$d_{\text{ff}}=4d$） | 每层约 $12d^2$，共 $L$ 层 |
-| 长序列瓶颈 | Attention $O(n^2 d)$ |
+| 参数量主项（$`d_{\text{ff}}=4d`$） | 每层约 $`12d^2`$，共 $`L`$ 层 |
+| 长序列瓶颈 | Attention $`O(n^2 d)`$ |
 
 ---
 
@@ -599,13 +599,13 @@ class TinyDecoderLM(nn.Module):
 **答**：RNN 时间步存在链式依赖；Transformer 主要计算为 **大块矩阵乘**，在 GPU 上对长度与特征维并行度高（Decoder 仍有因果掩码约束可见性，但算子并行）。
 
 ### Q：Causal Mask 是什么？为什么需要？
-**答**：禁止位置 $i$ attend 到 $j>i$；保证训练与自回归推理一致，避免「偷看未来」。
+**答**：禁止位置 $`i`$ attend 到 $`j>i`$；保证训练与自回归推理一致，避免「偷看未来」。
 
 ### Q：Embedding 参数量？
-**答**：$V \times d$；若与 LM head **权重共享**则不计两次。
+**答**：$`V \times d`$；若与 LM head **权重共享**则不计两次。
 
 ### Q：FFN 隐层通常多少？为什么？
-**答**：经典 **$4d$**；容量与算力折中；现代 SwiGLU 会调整有效宽度（Lesson 05）。
+**答**：经典 **$`4d`$**；容量与算力折中；现代 SwiGLU 会调整有效宽度（Lesson 05）。
 
 ### Q：Transformer 中 dropout 常见位置？
 **答**：注意力输出/概率、残差后、FFN、embedding 等依实现；`eval()` 关闭。
@@ -617,10 +617,10 @@ class TinyDecoderLM(nn.Module):
 **答**：**RMSNorm**、**RoPE**、**SwiGLU**、**GQA** 等（Lesson 04–05）。
 
 ### Q：参数量如何算？
-**答**：Embedding $Vd$ + 每层 Attention $4d^2$ 量级 + FFN $2d\cdot d_{ff}$ + 小项；给假设后估 $12Ld^2$ 量级。
+**答**：Embedding $`Vd`$ + 每层 Attention $`4d^2`$ 量级 + FFN $`2d\cdot d_{ff}`$ + 小项；给假设后估 $`12Ld^2`$ 量级。
 
 ### Q：FLOPs 如何算？
-**答**：Attention $O(n^2 d)$ 与投影 $O(n d^2)$ 组合；随 $n$ 增大平方项主导。
+**答**：Attention $`O(n^2 d)`$ 与投影 $`O(n d^2)`$ 组合；随 $`n`$ 增大平方项主导。
 
 ---
 
